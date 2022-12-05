@@ -3,11 +3,11 @@
 #include <pspctrl.h>
 #include <pspgu.h>
 
-#include "vram.h"
+#include "alloc.h"
 #include "state.h"
 
-PSP_MODULE_INFO("jkport", 0, 1, 0);
-PSP_MAIN_THREAD_ATTR(THREAD_ATTR_VFPU | THREAD_ATTR_USER);
+PSP_MODULE_INFO("jkport", PSP_MODULE_USER, 1, 0);
+PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 
 #define BUFFER_WIDTH 512
 #define BUFFER_HEIGHT SCREEN_HEIGHT
@@ -19,7 +19,6 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_VFPU | THREAD_ATTR_USER);
 
 const GameState *__currentState;
 SceCtrlData __ctrlData;
-
 
 static int running;
 static char displayList[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
@@ -68,9 +67,9 @@ static void initGu(void) {
     sceGuInit();
     sceGuStart(GU_DIRECT, displayList);
     // Reserve VRAM for draw, display and depth buffers
-    drawBuffer = getStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888);
-    dispBuffer = getStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888);
-    depthBuffer = getStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444);
+    drawBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888);
+    dispBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888);
+    depthBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444);
     // Set up the buffers
     sceGuDrawBuffer(GU_PSM_8888, drawBuffer, BUFFER_WIDTH);
     sceGuDispBuffer(SCREEN_WIDTH, SCREEN_HEIGHT, dispBuffer, BUFFER_WIDTH);
@@ -99,15 +98,7 @@ static void endGu(void) {
     sceGuTerm();
 }
 
-extern const GameState IN_GAME;
-
-static int init(void) {
-#ifdef DEBUG
-    // Initialize debug screen
-    // only if this is a debug build
-    pspDebugScreenInit();
-    pspDebugScreenClear();
-#endif
+static void init(void) {
     // Set up the input mode
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_DIGITAL);
@@ -117,18 +108,19 @@ static int init(void) {
     __currentState = &IN_GAME;
     __currentState->init();
     // Set up callbacks
-    return setupCallbacks();
+    initAllocator();
+    setupCallbacks();
 }
 
-static int cleanup(void) {
+static void cleanup(void) {
     endGu();
     sceKernelExitGame();
-    return 0;
+    endAllocator();
 }
 
 int main(void) {
     long now, prev;
-    running = init();
+    init();
     prev = sceKernelLibcClock();
     while (running) {
         now = sceKernelLibcClock();
@@ -144,5 +136,6 @@ int main(void) {
         endFrame();
         prev = now;
     }
-    return cleanup();
+    cleanup();
+    return 0;
 }

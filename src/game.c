@@ -1,7 +1,7 @@
 #include "state.h"
 #include <string.h>
 
-#define PLAYER_MAX_VSPEED 50
+#define PLAYER_MAX_VSPEED 40
 #define PLAYER_MAX_HSPEED 15
 
 #define GAME_SCREEN_WIDTH (SCREEN_HEIGHT * 4 / 3)
@@ -51,7 +51,7 @@ static void update(long delta) {
 
     // Move the player
     Player.x += timesDelta(Player.vx, delta) / 10;
-    Player.y += timesDelta(Player.vy, delta) / 10;
+    Player.y += timesDelta(Player.vy, delta) / 6;
 
     // Apply gravity if in air
     if (Player.inAir && Player.vy > -PLAYER_MAX_VSPEED) {
@@ -103,9 +103,6 @@ static void render(void) {
 
     sceGuColor(0xFF0000FF);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
-
-    //printf("X:%d Y:%d -- VX:%d VY:%d -- SX:%d SY:%d -- Screen:%d", Player.x, Player.y, Player.vx, Player.vy, playerScreenX, playerScreenY, currentScreen);
-    //printf("Y:%d", Player.y);
 }
 
 static void cleanup(void) {

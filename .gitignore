@@ -1,2 +1,4 @@
 build/
 .cache/
+src/assets/
+assets/*.png

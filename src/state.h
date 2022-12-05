@@ -1,10 +1,6 @@
 #ifndef __STATE_H__
 #define __STATE_H__
 
-#ifdef DEBUG
-#include <pspdebug.h>
-#endif
-#include <psptypes.h>
 #include <pspctrl.h>
 #include <pspgu.h>
 
@@ -30,10 +26,6 @@ inline void switchState(const GameState *new) {
 #define Input __ctrlData
 #define timesDelta(expr, delta) ((expr * delta) / 10000)
 
-#ifdef DEBUG
-#define printf(fmt, ...) ({ pspDebugScreenSetXY(0, 0); pspDebugScreenPrintf(fmt, ##__VA_ARGS__); })
-#else
-#define printf(fmt, ...)
-#endif
+extern const GameState IN_GAME;
 
 #endif
