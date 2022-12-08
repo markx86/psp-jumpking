@@ -11,7 +11,7 @@ char *readFile(const char *path) {
     }
     unsigned int size = sceIoLseek(file, 0, SEEK_END);
     sceIoLseek(file, 0, SEEK_SET);
-    void *buffer = allocateMemory(size);
+    void *buffer = malloc(size);
     int bytes = sceIoRead(file, buffer, size);
     sceIoClose(file);
     if (bytes < size) {
@@ -21,7 +21,7 @@ char *readFile(const char *path) {
 }
 
 void unloadFile(void *buffer) {
-    freeMemory(buffer);
+    free(buffer);
 }
 
 void *loadTexture(const char *path) {

@@ -6,7 +6,7 @@
 #include "alloc.h"
 #include "state.h"
 
-PSP_MODULE_INFO("jkport", PSP_MODULE_USER, 1, 0);
+PSP_MODULE_INFO("Jump King", PSP_MODULE_USER, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 
 #define BUFFER_WIDTH 512
@@ -20,7 +20,7 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 const GameState *__currentState;
 SceCtrlData __ctrlData;
 
-static int running;
+static int running = 1;
 static char displayList[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
 
 static int exitCallback(int arg1, int arg2, void *common) {
@@ -104,18 +104,17 @@ static void init(void) {
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_DIGITAL);
     // Initialize graphics
     initGu();
+    // Set up callbacks
+    setupCallbacks();
     // Set the initial game state
     __currentState = &IN_GAME;
     __currentState->init();
-    // Set up callbacks
-    initAllocator();
-    setupCallbacks();
 }
 
 static void cleanup(void) {
+    __currentState->cleanup();
     endGu();
     sceKernelExitGame();
-    endAllocator();
 }
 
 int main(void) {

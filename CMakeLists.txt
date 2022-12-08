@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(jkport)
+project(psp-jumpking)
 
 if(NOT DEFINED ${CMAKE_BUILD_TYPE})
     set(CMAKE_BUILD_TYPE "Debug")
@@ -23,6 +23,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     pspge
     pspdisplay
     pspctrl
+    pspvramalloc
     debug pspdebug
 )
 
@@ -31,5 +32,5 @@ create_pbp_file(
     ICON_PATH NULL
     BACKGROUND_PATH NULL
     PREVIEW_PATH NULL
-    TITLE ${PROJECT_NAME}
+    TITLE "Jump King"
 )
