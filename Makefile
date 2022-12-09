@@ -2,11 +2,13 @@ PPSSPP = $(abspath ../ppsspp/bin/PPSSPPSDL)
 
 BUILDDIR = $(abspath ./build)
 
-.PHONY: run clean
+.PHONY: ppsspp build clean
 
-run: $(BUILDDIR)
-	@$(MAKE) -C $<
+ppsspp: build
 	$(PPSSPP) $</EBOOT.PBP
+
+build: $(BUILDDIR)
+	@$(MAKE) -C $<
 
 clean:
 	rm -rf $(BUILDDIR)

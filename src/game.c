@@ -1,5 +1,6 @@
 #include "state.h"
 #include <string.h>
+#include "loader.h"
 
 #define PLAYER_MAX_VSPEED 40
 #define PLAYER_MAX_HSPEED 15
@@ -15,10 +16,12 @@ static struct {
 } Player;
 
 static int currentScreen;
+static void *playerTilemap;
 
 static void init(void) {
     currentScreen = 0;
     memset(&Player, 0, sizeof(Player));
+    playerTilemap = loadTexture("ms0://assets/king/base.qoi");
 }
 
 static void update(long delta) {
@@ -106,7 +109,7 @@ static void render(void) {
 }
 
 static void cleanup(void) {
-    
+    unloadTexture(playerTilemap);
 }
 
 const GameState IN_GAME = {

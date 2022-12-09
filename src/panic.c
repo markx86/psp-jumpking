@@ -21,9 +21,12 @@ void panic(const char *fmt, ...) {
 
     pspDebugScreenInit();
     pspDebugScreenClear();
-    pspDebugScreenPrintf("%s", msg);
-
-    sceKernelDelayThread(10000000);
+    pspDebugScreenPrintf("%s\n\n[ PRESS X TO RESET ]", msg);
+ 
+    do {
+        sceCtrlReadBufferPositive(&__ctrlData, 1);
+        sceKernelDelayThreadCB(100);
+    } while (!(__ctrlData.Buttons & PSP_CTRL_CROSS));
 #endif
     sceKernelExitGame();
 }

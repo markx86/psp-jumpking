@@ -2,7 +2,6 @@
 #include <pspdisplay.h>
 #include <pspctrl.h>
 #include <pspgu.h>
-
 #include "alloc.h"
 #include "state.h"
 
@@ -62,14 +61,13 @@ static void endFrame(void) {
 }
 
 static void initGu(void) {
-    void *drawBuffer, *dispBuffer, *depthBuffer;
     // Initialize the graphics utility
     sceGuInit();
     sceGuStart(GU_DIRECT, displayList);
     // Reserve VRAM for draw, display and depth buffers
-    drawBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888);
-    dispBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888);
-    depthBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444);
+    void *drawBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888);
+    void *dispBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888);
+    void *depthBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444);
     // Set up the buffers
     sceGuDrawBuffer(GU_PSM_8888, drawBuffer, BUFFER_WIDTH);
     sceGuDispBuffer(SCREEN_WIDTH, SCREEN_HEIGHT, dispBuffer, BUFFER_WIDTH);
@@ -118,9 +116,8 @@ static void cleanup(void) {
 }
 
 int main(void) {
-    long now, prev;
     init();
-    prev = sceKernelLibcClock();
+    long now, prev = sceKernelLibcClock();
     while (running) {
         now = sceKernelLibcClock();
         // Poll input
