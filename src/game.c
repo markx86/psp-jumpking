@@ -21,7 +21,7 @@ static void *playerTilemap;
 static void init(void) {
     currentScreen = 0;
     memset(&Player, 0, sizeof(Player));
-    playerTilemap = loadTexture("ms0://assets/king/base.qoi");
+    playerTilemap = loadTexture("./assets/king/base.qoi");
 }
 
 static void update(long delta) {
@@ -96,16 +96,20 @@ static struct {
 } __attribute__((packed)) vertices[2];
 
 static void render(void) {
-    short playerScreenX = Player.x + (SCREEN_WIDTH / 2);
-    short playerScreenY = SCREEN_HEIGHT - Player.y;
-    
-    vertices[0].x = playerScreenX -8;
-    vertices[0].y = playerScreenY -16;
-    vertices[1].x = playerScreenX +8;
-    vertices[1].y = playerScreenY;
+    // Draw player
+    {
+        short playerScreenX = Player.x + (SCREEN_WIDTH / 2);
+        short playerScreenY = SCREEN_HEIGHT - Player.y;
 
-    sceGuColor(0xFF0000FF);
-    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
+        vertices[0].x = playerScreenX -8;
+        vertices[0].y = playerScreenY -16;
+        vertices[1].x = playerScreenX +8;
+        vertices[1].y = playerScreenY;
+
+        sceGuTexImage(0, 32, 32, 0, playerTilemap);
+        sceGuColor(0xFF0000FF);
+        sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
+    }
 }
 
 static void cleanup(void) {

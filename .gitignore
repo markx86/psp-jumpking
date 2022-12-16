@@ -3,3 +3,4 @@ build/
 src/assets/
 assets/*
 !assets/README.md
+scripts/converter/input-dir

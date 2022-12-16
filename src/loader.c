@@ -3,6 +3,8 @@
 #include "alloc.h"
 #include "panic.h"
 #define QOI_IMPLEMENTATION
+#define QOI_MALLOC(size) allocateTexture(size)
+#define QOI_FREE(ptr) freeTexture(ptr)
 #include "qoi.h"
 
 unsigned char *readTextFile(const char *path) {

@@ -78,9 +78,9 @@ static void initGu(void) {
     sceGuScissor(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     sceGuEnable(GU_SCISSOR_TEST);
     // Set up depth test
-    sceGuDepthRange(65535, 0);
-    sceGuDepthFunc(GU_GEQUAL);
-    sceGuEnable(GU_DEPTH_TEST);
+    //sceGuDepthRange(65535, 0);
+    //sceGuDepthFunc(GU_GEQUAL);
+    //sceGuEnable(GU_DEPTH_TEST);
     // Finish initialization
     sceGuFinish();
     // Wait for render to finish

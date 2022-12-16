@@ -1,0 +1,16 @@
+[
+    {
+        "file": "king/base.png",
+        "tilemaps": [
+            {
+                "name": "regular",
+                "offset": [224, 0],
+                "vpad": "top",
+                "hpad": "center",
+                "tileSize": [48,48],
+                "sizeInTiles": [4, 4],
+                "totalTiles": 13
+            }
+        ]
+    }
+]
