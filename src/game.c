@@ -1,13 +1,13 @@
 #include "state.h"
-#include <string.h>
 #include "loader.h"
+#include <string.h>
 
 #define PLAYER_MAX_VSPEED 40
 #define PLAYER_MAX_HSPEED 15
 
 #define GAME_SCREEN_WIDTH (SCREEN_HEIGHT * 4 / 3)
 
-static struct {
+typedef struct {
     short x, y;
     short vx, vy;
     short jumpPower;
@@ -15,100 +15,114 @@ static struct {
     short inAir;
 } Player;
 
+typedef struct {
+    short u, v;
+    short x, y, z;
+} __attribute__((packed)) Vertex;
+
+static Player player;
+
 static int currentScreen;
 static void *playerTilemap;
+static short spriteOffsetU = 0;
 
 static void init(void) {
     currentScreen = 0;
-    memset(&Player, 0, sizeof(Player));
-    playerTilemap = loadTexture("./assets/king/base.qoi");
+    memset(&player, 0, sizeof(Player));
+    playerTilemap = loadTexture("host0://assets/textures/king/base/regular.qoi");
 }
 
 static void update(long delta) {
     // Check which direction the player wants to go
     if (Input.Buttons & PSP_CTRL_RIGHT) {
-        Player.direction = +1;
+        player.direction = +1;
+        spriteOffsetU = 0;
     } else if (Input.Buttons & PSP_CTRL_LEFT) {
-        Player.direction = -1;
+        player.direction = -1;
+        spriteOffsetU = 32;
     } else {
-        Player.direction = 0;
+        player.direction = 0;
     }
 
     // If the player is on the ground
-    if (!Player.inAir) {
-        if ((Input.Buttons & PSP_CTRL_CROSS) && Player.jumpPower < PLAYER_MAX_VSPEED) {
+    if (!player.inAir) {
+        if ((Input.Buttons & PSP_CTRL_CROSS) && player.jumpPower < PLAYER_MAX_VSPEED) {
             // If cross is pressed, build up jump power
-            Player.jumpPower += 1;
-            Player.vx = 0;
-        } else if (Player.jumpPower) {
+            player.jumpPower += 1;
+            player.vx = 0;
+        } else if (player.jumpPower) {
             // If some power was built up, jump
-            Player.vx = Player.direction * PLAYER_MAX_HSPEED;
-            Player.vy = Player.jumpPower;
-            Player.jumpPower = 0;
-            Player.inAir = 1;
+            player.vx = player.direction * PLAYER_MAX_HSPEED;
+            player.vy = player.jumpPower;
+            player.jumpPower = 0;
+            player.inAir = 1;
         } else {
             // Otherwise move the player
-            Player.vx = Player.direction * PLAYER_MAX_HSPEED;
+            player.vx = player.direction * PLAYER_MAX_HSPEED;
         }
     }
 
     // Move the player
-    Player.x += timesDelta(Player.vx, delta) / 10;
-    Player.y += timesDelta(Player.vy, delta) / 6;
+    player.x += timesDelta(player.vx, delta) / 10;
+    player.y += timesDelta(player.vy, delta) / 6;
 
     // Apply gravity if in air
-    if (Player.inAir && Player.vy > -PLAYER_MAX_VSPEED) {
-        Player.vy -= 1;
+    if (player.inAir && player.vy > -PLAYER_MAX_VSPEED) {
+        player.vy -= 1;
     }
 
     // Check for y-collisions and scroll the screen
-    if (Player.y < 0) {
+    if (player.y < 0) {
         if (currentScreen > 0) {
             --currentScreen;
-            Player.y = SCREEN_HEIGHT;
+            player.y = SCREEN_HEIGHT;
         } else {
-            Player.vy = 0;
-            Player.y = 0;
-            Player.inAir = 0;
+            player.vy = 0;
+            player.y = 0;
+            player.inAir = 0;
         }
-    } else if (Player.y > SCREEN_HEIGHT) {
+    } else if (player.y > SCREEN_HEIGHT) {
         ++currentScreen;
-        Player.y = 0;
+        player.y = 0;
     }
 
     // Check for x-collisions
-    if (Player.x < -GAME_SCREEN_WIDTH / 2) {
-        Player.x = -GAME_SCREEN_WIDTH / 2;
-        if (Player.inAir) {
-            Player.vx = -Player.vx / 2;
+    if (player.x < -GAME_SCREEN_WIDTH / 2) {
+        player.x = -GAME_SCREEN_WIDTH / 2;
+        if (player.inAir) {
+            player.vx = -player.vx / 2;
         }
-    } else if (Player.x > GAME_SCREEN_WIDTH / 2) {
-        Player.x = GAME_SCREEN_WIDTH / 2;
-        if (Player.inAir) {
-            Player.vx = -Player.vx / 2;
+    } else if (player.x > GAME_SCREEN_WIDTH / 2) {
+        player.x = GAME_SCREEN_WIDTH / 2;
+        if (player.inAir) {
+            player.vx = -player.vx / 2;
         }
     }
 }
 
-static struct {
-    unsigned short u, v;
-    short x, y, z;
-} __attribute__((packed)) vertices[2];
-
 static void render(void) {
     // Draw player
     {
-        short playerScreenX = Player.x + (SCREEN_WIDTH / 2);
-        short playerScreenY = SCREEN_HEIGHT - Player.y;
+        short playerScreenX = player.x + (SCREEN_WIDTH / 2);
+        short playerScreenY = SCREEN_HEIGHT - player.y;
 
-        vertices[0].x = playerScreenX -8;
-        vertices[0].y = playerScreenY -16;
-        vertices[1].x = playerScreenX +8;
+        Vertex *vertices = (Vertex*) sceGuGetMemory(2 * sizeof(Vertex));
+        vertices[0].x = playerScreenX -16;
+        vertices[0].y = playerScreenY -32;
+        vertices[0].u = spriteOffsetU;
+        vertices[0].v = 0;
+        vertices[1].x = playerScreenX +16;
         vertices[1].y = playerScreenY;
+        vertices[1].u = 32 - spriteOffsetU;
+        vertices[1].v = 32;
 
-        sceGuTexImage(0, 32, 32, 0, playerTilemap);
-        sceGuColor(0xFF0000FF);
+        sceGuTexMode(GU_PSM_8888, 0, 0, 0);
+        sceGuTexImage(0, 32, 32, 32, playerTilemap);
+        sceGuTexFunc(GU_TFX_ADD, GU_TCC_RGBA);
+        sceGuTexFilter(GU_LINEAR, GU_LINEAR);
         sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
+        //sceGuColor(0xFF0000FF);
+        //sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
     }
 }
 

@@ -21,6 +21,7 @@ SceCtrlData __ctrlData;
 
 static int running = 1;
 static char displayList[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
+static void *drawBuffer, *dispBuffer, *depthBuffer;
 
 static int exitCallback(int arg1, int arg2, void *common) {
     running = 0;
@@ -45,7 +46,7 @@ static int setupCallbacks(void) {
 
 static void startFrame(void) {
     sceGuStart(GU_DIRECT, displayList);
-    // Clear screen with white
+    // Clear screen with black
     sceGuClearColor(0xFF000000);
     sceGuClear(GU_COLOR_BUFFER_BIT);
 }
@@ -61,26 +62,28 @@ static void endFrame(void) {
 }
 
 static void initGu(void) {
+    // Reserve VRAM for draw, display and depth buffers
+    drawBuffer = vramalloc(vgetMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888));
+    dispBuffer = vramalloc(vgetMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888));
+    depthBuffer = vramalloc(vgetMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444));
     // Initialize the graphics utility
     sceGuInit();
     sceGuStart(GU_DIRECT, displayList);
-    // Reserve VRAM for draw, display and depth buffers
-    void *drawBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888);
-    void *dispBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888);
-    void *depthBuffer = allocateStaticVramBuffer(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444);
     // Set up the buffers
-    sceGuDrawBuffer(GU_PSM_8888, drawBuffer, BUFFER_WIDTH);
-    sceGuDispBuffer(SCREEN_WIDTH, SCREEN_HEIGHT, dispBuffer, BUFFER_WIDTH);
-    sceGuDepthBuffer(depthBuffer, BUFFER_WIDTH);
+    sceGuDrawBuffer(GU_PSM_8888, vrelptr(drawBuffer), BUFFER_WIDTH);
+    sceGuDispBuffer(SCREEN_WIDTH, SCREEN_HEIGHT, vrelptr(dispBuffer), BUFFER_WIDTH);
+    sceGuDepthBuffer(vrelptr(depthBuffer), BUFFER_WIDTH);
     // Set up viewport
     sceGuOffset((VIRTUAL_WIDTH - SCREEN_WIDTH) / 2, (VIRTUAL_HEIGHT - SCREEN_HEIGHT) / 2);
     sceGuViewport(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT);
     sceGuScissor(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     sceGuEnable(GU_SCISSOR_TEST);
     // Set up depth test
-    //sceGuDepthRange(65535, 0);
-    //sceGuDepthFunc(GU_GEQUAL);
-    //sceGuEnable(GU_DEPTH_TEST);
+    sceGuDepthRange(65535, 0);
+    sceGuDepthFunc(GU_GEQUAL);
+    sceGuEnable(GU_DEPTH_TEST);
+    // Enable texture support
+    sceGuEnable(GU_TEXTURE_2D);
     // Finish initialization
     sceGuFinish();
     // Wait for render to finish
@@ -94,6 +97,9 @@ static void initGu(void) {
 static void endGu(void) {
     sceGuDisplay(GU_FALSE);
     sceGuTerm();
+    vfree(depthBuffer);
+    vfree(dispBuffer);
+    vfree(drawBuffer);
 }
 
 static void init(void) {

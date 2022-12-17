@@ -1,10 +1,10 @@
 #include "loader.h"
-#include <png.h>
+#include <pspgu.h>
 #include "alloc.h"
 #include "panic.h"
 #define QOI_IMPLEMENTATION
-#define QOI_MALLOC(size) allocateTexture(size)
-#define QOI_FREE(ptr) freeTexture(ptr)
+#define QOI_MALLOC(sz) vramalloc(sz)
+#define QOI_FREE(ptr) vfree(ptr)
 #include "qoi.h"
 
 unsigned char *readTextFile(const char *path) {
@@ -37,7 +37,7 @@ void *loadTexture(const char *path) {
         loadTexturePanic("Could not open file");
     }
     fseek(file, 0, SEEK_END);
-    long size = ftell(file);
+    unsigned long size = ftell(file);
     fseek(file, 0, SEEK_SET);
     void *buffer = malloc(size);
     unsigned long bytes = fread(buffer, 1, size, file);
@@ -56,5 +56,5 @@ void *loadTexture(const char *path) {
 }
 
 void unloadTexture(void *texturePtr) {
-    free(texturePtr);
+    vfree(vabsptr(texturePtr));
 }

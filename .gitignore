@@ -1,6 +1,6 @@
 build/
 .cache/
-src/assets/
-assets/*
+.config/
+assets/**/*
 !assets/README.md
 scripts/converter/input-dir

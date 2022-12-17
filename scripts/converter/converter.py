@@ -6,6 +6,7 @@ import argparse
 import imageio.v3 as iio
 import numpy as np
 import math
+import qoi
 
 class Vector2:
     def __init__(self, x, y):
@@ -136,9 +137,11 @@ class Tilemap:
             #pixels.extend(tile_pixels)
             tile.crop_to(new_size)
             pixels.extend(tile.get_pixels())
-        output_path = output_folder.joinpath(self._name + ".png")
+        #output_path = output_folder.joinpath(self._name + ".png")
+        output_path = output_folder.joinpath(self._name + ".qoi")
         rgba = np.array(pixels, dtype=np.uint8)
-        iio.imwrite(output_path, rgba, extension=".png")
+        #iio.imwrite(output_path, rgba, extension=".png")
+        qoi.write(output_path, rgba)
 
     def extract(self, image, output_folder):
         tilestrip_images = []
