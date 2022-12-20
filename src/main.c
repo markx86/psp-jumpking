@@ -1,4 +1,4 @@
-#include <pspkernel.h>
+#include <pspuser.h>
 #include <pspdisplay.h>
 #include <pspctrl.h>
 #include <pspgu.h>
@@ -21,7 +21,7 @@ const GameState *__currentState;
 SceCtrlData __ctrlData;
 SceCtrlLatch __latchData;
 
-static int running = 1;
+static int running;
 static char displayList[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
 static void *drawBuffer, *dispBuffer, *depthBuffer;
 
@@ -48,8 +48,6 @@ static int setupCallbacks(void) {
 
 static void startFrame(void) {
     sceGuStart(GU_DIRECT, displayList);
-    // Clear screen with black
-    sceGuClearColor(0xFF000000);
     sceGuClear(GU_COLOR_BUFFER_BIT);
 }
 
@@ -65,9 +63,9 @@ static void endFrame(void) {
 
 static void initGu(void) {
     // Reserve VRAM for draw, display and depth buffers
-    drawBuffer = vramalloc(vgetMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888));
-    dispBuffer = vramalloc(vgetMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888));
-    depthBuffer = vramalloc(vgetMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444));
+    drawBuffer = vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888));
+    dispBuffer = vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888));
+    depthBuffer = vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444));
     // Initialize the graphics utility
     sceGuInit();
     sceGuStart(GU_DIRECT, displayList);
@@ -86,6 +84,8 @@ static void initGu(void) {
     sceGuEnable(GU_DEPTH_TEST);
     // Enable texture support
     sceGuEnable(GU_TEXTURE_2D);
+    // Clear screen with black
+    sceGuClearColor(0xFF000000);
     // Finish initialization
     sceGuFinish();
     // Wait for render to finish
@@ -105,6 +105,8 @@ static void endGu(void) {
 }
 
 static void init(void) {
+    // Initialize resource loader
+    initLoader();
     // Set up the input mode
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_DIGITAL);
@@ -115,11 +117,14 @@ static void init(void) {
     // Set the initial game state
     __currentState = &IN_GAME;
     __currentState->init();
+    // Set running state to 1
+    running = 1;
 }
 
 static void cleanup(void) {
     __currentState->cleanup();
     endGu();
+    endLoader();
     sceKernelExitGame();
 }
 

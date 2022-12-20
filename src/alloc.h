@@ -1,9 +1,15 @@
 #ifndef __ALLOC_H__
 #define __ALLOC_H__
 
-#include <stdlib.h>
+#include <pspkerneltypes.h>
 #include <vram.h>
 
-unsigned int vgetMemorySize(unsigned int width, unsigned int height, unsigned int psm);
+SceUID createArena(const char *name, unsigned int size);
+void destroyArena(SceUID arena);
+
+void *allocateMemory(SceUID arena, unsigned int size);
+void *freeMemory(SceUID arena, void *data);
+
+unsigned int getVramMemorySize(unsigned int width, unsigned int height, unsigned int psm);
 
 #endif

@@ -2,6 +2,7 @@
 #define __STATE_H__
 
 #include "panic.h"
+#include "loader.h"
 #include <pspctrl.h>
 #include <pspgu.h>
 
@@ -24,7 +25,6 @@ inline void switchState(const GameState *new) {
 
 #define SCREEN_WIDTH 480
 #define SCREEN_HEIGHT 272
-#define GAME_SCREEN_WIDTH (SCREEN_HEIGHT * 4.0f / 3.0f)
 
 #define Input __ctrlData
 #define Latch __latchData

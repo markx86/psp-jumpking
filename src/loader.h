@@ -1,10 +1,10 @@
 #ifndef __LOADER_H__
 #define __LOADER_H__
 
-unsigned char *readTextFile(const char *path);
-void unloadTextFile(void *buffer);
+void initLoader(void);
+void endLoader(void);
 
-void *loadTextureVram(const char *path);
+void *loadTextureVram(const char *path, unsigned int *outWidth, unsigned int *outHeight);
 void unloadTextureVram(void *texturePtr);
 
 #endif

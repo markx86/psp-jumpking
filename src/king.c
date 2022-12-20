@@ -1,6 +1,5 @@
 #include "king.h"
 #include "state.h"
-#include "loader.h"
 #include <string.h>
 
 #define PLAYER_MAX_FALL_TIME 100.0f
@@ -14,7 +13,7 @@
 
 #define PLAYER_GET_SPRITE(idx) (((char*) playerTilemap) + PLAYER_SPRITE_WIDTH * PLAYER_SPRITE_HEIGHT * 4 * (idx))
 
-#define BORDER_OFFSET ((GAME_SCREEN_WIDTH - PLAYER_SPRITE_WIDTH) / 2.0f)
+#define BORDER_OFFSET ((SCREEN_WIDTH - PLAYER_SPRITE_WIDTH) / 2.0f)
 
 typedef enum {
     SPRITE_STANDING,
@@ -50,7 +49,7 @@ static SpriteType spriteIndex;
 
 static void createKing(void) {
     memset(&player, 0, sizeof(Player));
-    playerTilemap = loadTextureVram("host0://assets/king/base/regular.qoi");
+    playerTilemap = loadTextureVram("host0://assets/king/base/regular.qoi", NULL, NULL);
     spriteIndex = SPRITE_STANDING;
     spriteOffsetU = 0;
     walkCycle = 0;
@@ -87,7 +86,7 @@ static void updateKing(float delta, int *currentScreen) {
             player.stunned = 0;
             player.vx = 0;
             // If cross is pressed, build up jump power
-            player.jumpPower += PLAYER_MAX_VSPEED * delta;
+            player.jumpPower += PLAYER_MAX_VSPEED * 2.0f * delta;
         } else if (player.jumpPower) {
             // If some power was built up, jump
             player.vx = player.direction * PLAYER_MAX_HSPEED * 2.0f;
@@ -125,7 +124,7 @@ static void updateKing(float delta, int *currentScreen) {
     }
 
     // Move the player
-    player.x +=player.vx * delta;
+    player.x += player.vx * delta;
     player.y += player.vy * delta;
 
     // Apply gravity if in air
