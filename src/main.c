@@ -2,6 +2,7 @@
 #include <pspdisplay.h>
 #include <pspctrl.h>
 #include <pspgu.h>
+#include <time.h>
 #include "alloc.h"
 #include "state.h"
 
@@ -18,6 +19,7 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 
 const GameState *__currentState;
 SceCtrlData __ctrlData;
+SceCtrlLatch __latchData;
 
 static int running = 1;
 static char displayList[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
@@ -123,13 +125,16 @@ static void cleanup(void) {
 
 int main(void) {
     init();
-    long now, prev = sceKernelLibcClock();
+    unsigned long now, prev;
+    prev = sceKernelLibcClock();
     while (running) {
         now = sceKernelLibcClock();
         // Poll input
         sceCtrlReadBufferPositive(&__ctrlData, 1);
+        sceCtrlReadLatch(&__latchData);
         // Tick current frame
-        __currentState->update(now - prev);
+        float delta = ((float)(now - prev)) / 1000000.0f;
+        __currentState->update(delta);
         // Prepare next frame
         startFrame();
         // Render current state

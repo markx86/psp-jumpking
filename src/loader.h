@@ -4,7 +4,7 @@
 unsigned char *readTextFile(const char *path);
 void unloadTextFile(void *buffer);
 
-void *loadTexture(const char *path);
-void unloadTexture(void *texturePtr);
+void *loadTextureVram(const char *path);
+void unloadTextureVram(void *texturePtr);
 
 #endif

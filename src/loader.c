@@ -30,8 +30,8 @@ void unloadTextFile(void *buffer) {
     free(buffer);
 }
 
-void *loadTexture(const char *path) {
-#define loadTexturePanic(msg, ...) panic("Error while loading texture: %s\n" msg ".", path, ##__VA_ARGS__)
+void *loadTextureVram(const char *path) {
+#define loadTexturePanic(msg, ...) panic("Error while loading vram texture: %s\n" msg ".", path, ##__VA_ARGS__)
     FILE *file = fopen(path, "rb");
     if (file == NULL) {
         loadTexturePanic("Could not open file");
@@ -55,6 +55,31 @@ void *loadTexture(const char *path) {
 #undef loadTexturePanic
 }
 
-void unloadTexture(void *texturePtr) {
+void unloadTextureVram(void *texturePtr) {
     vfree(vabsptr(texturePtr));
+}
+
+void *loadTextureRam(const char* path) {
+    #define loadTexturePanic(msg, ...) panic("Error while loading ram texture: %s\n" msg ".", path, ##__VA_ARGS__)
+    FILE *file = fopen(path, "rb");
+    if (file == NULL) {
+        loadTexturePanic("Could not open file");
+    }
+    fseek(file, 0, SEEK_END);
+    unsigned long size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    void *buffer = aligned_alloc(16, size);
+    unsigned long bytes = fread(buffer, 1, size, file);
+    fclose(file);
+    if (bytes < size) {
+        loadTexturePanic("Read bytes mismatch: read %u bytes out of %u", bytes, size);
+    }
+    qoi_desc desc;
+    void *texture = qoi_decode(buffer, size, &desc, 4);
+    free(buffer);
+    if (texture == NULL) {
+        loadTexturePanic("Failed to decode QOI");
+    }
+    return texture;
+#undef loadTexturePanic
 }

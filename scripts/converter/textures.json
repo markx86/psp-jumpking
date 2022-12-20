@@ -12,5 +12,12 @@
                 "totalTiles": 13
             }
         ]
+    },
+    {
+        "file": "screens/midground/1.png",
+        "texture": {
+            "name": "1",
+            "size": [480, 360]
+        }
     }
 ]

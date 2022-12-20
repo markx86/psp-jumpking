@@ -26,8 +26,6 @@ class Tile:
         self._vpad = vpad
 
     def crop_to(self, new_size):
-        top_left, bottom_right = self.get_bounding_box()
-        
         horizontal_delta = new_size.x - self._size.x
         vertical_delta = new_size.y - self._size.y
 
@@ -67,7 +65,7 @@ class Tile:
         if self._vpad == "top" or self._vpad == "center":
             self._pixels = np.insert(self._pixels, [0 for _ in range(vertical_delta)], [[0, 0, 0, 0] for _ in range(self._size.x)], axis=0)
         if self._vpad == "bottom" or self._vpad == "center":
-            self._pixels = np.append(self._pixels, [[[0, 0, 0, 0] for _ in range(self._size.x)]], axis=0)
+            self._pixels = np.append(self._pixels, [[[0, 0, 0, 0] for _ in range(self._size.x)] for _ in range(vertical_delta)], axis=0)
 
     def _shrink_vertically(self, vertical_delta):
         if self._vpad == "center":
@@ -116,9 +114,6 @@ class Tilemap:
         self._total_tiles = json_data["totalTiles"]
         self._vertical_padding = json_data["vpad"]
         self._horizontal_padding = json_data["hpad"]
-        if (self._tile_size.x % 4 != 0) or (self._tile_size.y % 4 != 0):
-            print("Error: tilemap named '{}' has tiles dimensions not divisible by 4.")
-            exit(-1)
     
     def _generate_image(self, tiles, top_left, bottom_right, output_folder):
     #def _generate_image(self, tiles, output_folder):
@@ -127,9 +122,9 @@ class Tilemap:
         width2 = math.log2(new_size.x)
         height2 = math.log2(new_size.y)
         if width2 - int(width2) > 0:
-            new_size.x = int(pow(2, int(width2) + 1))
+            new_size.x = int(pow(2, math.ceil(width2)))
         if height2 - int(height2) > 0:
-            new_size.y = int(pow(2, int(height2) + 1))
+            new_size.y = int(pow(2, math.ceil(height2)))
         for tile in tiles:
             #tile_pixels = tile.get_pixels()[top_left.y:bottom_right.y]
             #for y in range(len(tile_pixels)):
@@ -168,13 +163,22 @@ class TextureFile:
         self._file = json_data["file"]
         self._path = pathlib.Path(input_folder).joinpath(self._file)
         self._tilemaps = []
-        for tilemap in json_data["tilemaps"]:
+        if json_data.get("texture") is not None:
+            texture_data = json_data["texture"]
+            tilemap = { "name": texture_data["name"], "offset": [0, 0], "tileSize": texture_data["size"], "sizeInTiles": [1, 1], "totalTiles": 1, "vpad": "bottom", "hpad": "right" }
             self._tilemaps.append(Tilemap(tilemap))
+            self._is_texture = True
+        else:
+            for tilemap in json_data["tilemaps"]:
+                self._tilemaps.append(Tilemap(tilemap)) 
+            self._is_texture = False
     
     def extract_all(self, output_path):
         image = iio.imread(self._path, mode="RGBA")
-        relative_output = self._file.split(".")[0]
-        output_folder = pathlib.Path(output_path).joinpath(relative_output)
+        output_folder = pathlib.Path(output_path)
+        if not self._is_texture:
+            relative_output = self._file.split(".")[0]
+            output_folder = output_folder.joinpath(relative_output)
         if not output_folder.exists():
             output_folder.mkdir(parents=True, exist_ok=True)
         for tilemap in self._tilemaps:
@@ -203,7 +207,6 @@ if __name__ == "__main__":
         exit(-1)
 
     for file in json_data:
-        print(input_folder)
         texture_path = pathlib.Path(input_folder).joinpath(file["file"])
         if not texture_path.exists():
             print("Error: file '{}' does not exist.".format(texture_path))
