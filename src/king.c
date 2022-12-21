@@ -2,7 +2,7 @@
 #include "state.h"
 #include <string.h>
 
-#define PLAYER_MAX_FALL_TIME 100.0f
+#define PLAYER_MAX_FALL_TIME 3.0f
 
 #define PLAYER_MAX_VSPEED 450.0f
 #define PLAYER_MAX_HSPEED 100.0f
@@ -73,16 +73,11 @@ static void updateKing(float delta, int *currentScreen) {
             // Flip sprite
             spriteOffsetU = PLAYER_SPRITE_WIDTH;
         } else {
-            if (!player.stunned) {
-                spriteIndex = SPRITE_STANDING;
-            }
             player.direction = 0;
             walkCycle = 0;
         }
         
         if ((Input.Buttons & PSP_CTRL_CROSS) && player.jumpPower < PLAYER_MAX_VSPEED) {
-            // Set the player sprite to the king preparing to jump
-            spriteIndex = SPRITE_CHARGING;
             player.stunned = 0;
             player.vx = 0;
             // If cross is pressed, build up jump power
@@ -96,30 +91,6 @@ static void updateKing(float delta, int *currentScreen) {
         } else if (!player.stunned) {
             // Otherwise move the player
             player.vx = player.direction * PLAYER_MAX_HSPEED;
-            if (player.direction) {
-                walkCycle += 1;
-                switch (walkCycle / 4) {
-                    case 0:
-                    case 1:
-                    case 2:
-                        spriteIndex = SPRITE_WALKING0;
-                        break;
-                    case 3:
-                        spriteIndex = SPRITE_WALKING1;
-                        break;
-                    case 4:
-                    case 5:
-                    case 6:
-                        spriteIndex = SPRITE_WALKING2;
-                        break;
-                    case 7:
-                        spriteIndex = SPRITE_WALKING1;
-                        break;
-                    default:
-                        walkCycle = 0;
-                        break;
-                }
-            }
         }
     }
 
@@ -130,9 +101,6 @@ static void updateKing(float delta, int *currentScreen) {
     // Apply gravity if in air
     if (player.inAir && player.vy > -PLAYER_MAX_VSPEED) {
         fallTime += delta;
-        if (!player.stunned) {
-            spriteIndex = (player.vy < 0) ? SPRITE_FALLING : SPRITE_JUMPING;
-        }
         player.vy -= PLAYER_GRAVITY;
     }
 
@@ -143,10 +111,8 @@ static void updateKing(float delta, int *currentScreen) {
             player.y = SCREEN_HEIGHT;
         } else {
             if (fallTime > PLAYER_MAX_FALL_TIME) {
-                spriteIndex = SPRITE_HITFLOOR;
                 player.stunned = 1;
             } else {
-                spriteIndex = SPRITE_STANDING;
                 player.stunned = 0;
             }
             player.vx = 0.0f;
@@ -166,14 +132,48 @@ static void updateKing(float delta, int *currentScreen) {
         if (player.inAir) {
             player.vx = -(player.vx / 2.0f);
             player.stunned = 1;
-            spriteIndex = SPRITE_HITWALL;
         }
     } else if (player.x > BORDER_OFFSET) {
         player.x = BORDER_OFFSET;
         if (player.inAir) {
             player.vx = -(player.vx / 2.0f);
             player.stunned = 1;
-            spriteIndex = SPRITE_HITWALL;
+        }
+    }
+
+    // Update animation state
+    {
+        if (player.jumpPower) {
+            spriteIndex = SPRITE_CHARGING;
+        } else if (player.stunned) {
+            spriteIndex = (player.vy) ? SPRITE_HITWALL : SPRITE_HITFLOOR;
+        } else if (player.vy) {
+            spriteIndex = (player.vy > 0.0f) ? SPRITE_JUMPING : SPRITE_FALLING;
+        } else if (player.vx && player.direction) {
+            walkCycle += 1;
+            switch (walkCycle / 4) {
+                case 0:
+                case 1:
+                case 2:
+                    spriteIndex = SPRITE_WALKING0;
+                    break;
+                case 3:
+                    spriteIndex = SPRITE_WALKING1;
+                    break;
+                case 4:
+                case 5:
+                case 6:
+                    spriteIndex = SPRITE_WALKING2;
+                    break;
+                case 7:
+                    spriteIndex = SPRITE_WALKING1;
+                    break;
+                default:
+                    walkCycle = 0;
+                    break;
+            }
+        } else {
+            spriteIndex = SPRITE_STANDING;
         }
     }
 }
