@@ -42,15 +42,15 @@ typedef struct {
 } Vertex;
 
 static Player player;
-static void *playerTilemap;
-static short spriteOffsetU, walkCycle;
 static float fallTime;
-static SpriteType spriteIndex;
+static void *playerTilemap, *currentSprite;
+static short spriteOffsetU, walkCycle;
+static SpriteType currentSpriteType;
 
 static void createKing(void) {
     memset(&player, 0, sizeof(Player));
     playerTilemap = loadTextureVram("host0://assets/king/base/regular.qoi", NULL, NULL);
-    spriteIndex = SPRITE_STANDING;
+    currentSpriteType = SPRITE_STANDING;
     spriteOffsetU = 0;
     walkCycle = 0;
     fallTime = 0.0f;
@@ -143,37 +143,42 @@ static void updateKing(float delta, int *currentScreen) {
 
     // Update animation state
     {
+        SpriteType newSpriteType;
         if (player.jumpPower) {
-            spriteIndex = SPRITE_CHARGING;
+            newSpriteType = SPRITE_CHARGING;
         } else if (player.stunned) {
-            spriteIndex = (player.vy) ? SPRITE_HITWALL : SPRITE_HITFLOOR;
+            newSpriteType = (player.vy) ? SPRITE_HITWALL : SPRITE_HITFLOOR;
         } else if (player.vy) {
-            spriteIndex = (player.vy > 0.0f) ? SPRITE_JUMPING : SPRITE_FALLING;
+            newSpriteType = (player.vy > 0.0f) ? SPRITE_JUMPING : SPRITE_FALLING;
         } else if (player.vx && player.direction) {
             walkCycle += 1;
             switch (walkCycle / 4) {
                 case 0:
                 case 1:
                 case 2:
-                    spriteIndex = SPRITE_WALKING0;
+                    newSpriteType = SPRITE_WALKING0;
                     break;
                 case 3:
-                    spriteIndex = SPRITE_WALKING1;
+                    newSpriteType = SPRITE_WALKING1;
                     break;
                 case 4:
                 case 5:
                 case 6:
-                    spriteIndex = SPRITE_WALKING2;
+                    newSpriteType = SPRITE_WALKING2;
                     break;
                 case 7:
-                    spriteIndex = SPRITE_WALKING1;
+                    newSpriteType = SPRITE_WALKING1;
                     break;
                 default:
                     walkCycle = 0;
                     break;
             }
         } else {
-            spriteIndex = SPRITE_STANDING;
+            newSpriteType = SPRITE_STANDING;
+        }
+        if (currentSpriteType != newSpriteType) {
+            currentSpriteType = newSpriteType;
+            currentSprite = PLAYER_GET_SPRITE(currentSpriteType);
         }
     }
 }
@@ -193,7 +198,7 @@ static void renderKing(void) {
     vertices[1].v = PLAYER_SPRITE_HEIGHT;
 
     sceGuTexMode(GU_PSM_8888, 0, 0, 0);
-    sceGuTexImage(0, PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT, PLAYER_SPRITE_WIDTH, PLAYER_GET_SPRITE(spriteIndex));
+    sceGuTexImage(0, PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT, PLAYER_SPRITE_WIDTH, currentSprite);
     sceGuTexFunc(GU_TFX_ADD, GU_TCC_RGBA);
     sceGuTexFilter(GU_LINEAR, GU_LINEAR);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
