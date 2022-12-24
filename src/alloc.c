@@ -21,41 +21,53 @@ SceUID createPool(const char *name, unsigned int size) {
 
 void destroyArena(SceUID arena) {
     if (sceKernelDeleteVpl(arena) < 0) {
-        panic("Failed to destroy arena with ID %d", arena);
+        SceKernelVplInfo info;
+        sceKernelReferVplStatus(arena, &info);
+        panic("Failed to destroy arena with name `%s`", info.name);
     }
 }
 
 void destroyPool(SceUID pool) {
     if (sceKernelDeleteFpl(pool) < 0) {
-        panic("Failed to destroy pool with ID %d", pool);
+        SceKernelFplInfo info;
+        sceKernelReferFplStatus(pool, &info);
+        panic("Failed to destroy pool with name `%s`", info.name);
     }
 }
 
 void *allocateMemory(SceUID arena, unsigned int size) {
     void *data = NULL;
     if (sceKernelTryAllocateVpl(arena, size, &data) < 0) {
-        panic("Failed to allocate %u bytes in arena with ID %d", size, arena);
+        SceKernelVplInfo info;
+        sceKernelReferVplStatus(arena, &info);
+        panic("Failed to allocate %u bytes in arena with name `%s`", size, info.name);
     }
     return data;
 }
 
 void freeMemory(SceUID arena, void *data) {
     if (sceKernelFreeVpl(arena, data) < 0) {
-        panic("Failed to free %p from arena with ID %d", data, arena);
+        SceKernelVplInfo info;
+        sceKernelReferVplStatus(arena, &info);
+        panic("Failed to free %p from arena with name `%s`", data, info.name);
     }
 }
 
 void *allocatePool(SceUID pool) {
     void *data = NULL;
     if (sceKernelTryAllocateFpl(pool, &data) < 0) {
-        panic("Failed to allocate pool with ID %d", pool);
+        SceKernelFplInfo info;
+        sceKernelReferFplStatus(pool, &info);
+        panic("Failed to allocate pool with name `%s`", info.name);
     }
     return data;
 }
 
 void freePool(SceUID pool, void *data) {
     if (sceKernelFreeFpl(pool, data) < 0) {
-        panic("Failed to free %p from pool with ID %d", data, pool);
+        SceKernelFplInfo info;
+        sceKernelReferFplStatus(pool, &info);
+        panic("Failed to free %p from pool with name `%s`", data, info.name);
     }
 }
 

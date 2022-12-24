@@ -1,13 +1,12 @@
 #ifndef __KING_H__
 #define __KING_H__
 
-typedef struct {
-    void (*create)(void);
-    void (*update)(float delta, int *currentScreen);
-    void (*render)(void);
-    void (*destroy)(void);
-} King;
+#include "level.h"
 
-extern const King king;
+void kingCreate(void);
+void kingUpdate(float delta, LevelScreen *screen, short *outSX, short *outSY);
+void kingRender(void);
+void kingDestroy(void);
+
 
 #endif

@@ -1,5 +1,5 @@
 PPSSPP = $(abspath ../ppsspp/bin/PPSSPPSDL)
-LOCALCONFIG = $(abspath ./.config)
+LOCALCONFIG = $(abspath ./.config/ppsspp/PSP/GAME/psp-jumpking)
 
 BUILDDIR = $(abspath ./build)
 
@@ -20,3 +20,5 @@ $(BUILDDIR):
 
 $(LOCALCONFIG):
 	@mkdir -p $@
+	@cd $@ && ln -s ../../../../assets
+	@cd $@ && ln -s ../../../../build/EBOOT.PBP

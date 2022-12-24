@@ -9,19 +9,20 @@
 typedef struct {
     void (*init)(void);
     void (*update)(float delta);
+    void (*firstRender)(void);
     void (*render)(void);
     void (*cleanup)(void);
 } GameState;
 
-extern const GameState *__currentState;
+typedef struct {
+    short u, v;
+    short x, y, z;
+} Vertex;
+
 extern SceCtrlData __ctrlData;
 extern SceCtrlLatch __latchData;
 
-inline void switchState(const GameState *new) {
-    __currentState->cleanup();
-    __currentState = new;
-    __currentState->init();
-}
+extern void switchState(const GameState *new);
 
 #define SCREEN_WIDTH 480
 #define SCREEN_HEIGHT 272
@@ -29,6 +30,6 @@ inline void switchState(const GameState *new) {
 #define Input __ctrlData
 #define Latch __latchData
 
-extern const GameState IN_GAME;
+extern const GameState GAME;
 
 #endif

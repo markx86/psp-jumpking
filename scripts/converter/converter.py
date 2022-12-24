@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import os
 import pathlib
 import json
 import argparse
@@ -178,7 +179,9 @@ class TextureFile:
         output_folder = pathlib.Path(output_path)
         if not self._is_texture:
             relative_output = self._file.split(".")[0]
-            output_folder = output_folder.joinpath(relative_output)
+        else:
+            relative_output = os.path.split(self._file)[0]
+        output_folder = output_folder.joinpath(relative_output)
         if not output_folder.exists():
             output_folder.mkdir(parents=True, exist_ok=True)
         for tilemap in self._tilemaps:

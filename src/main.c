@@ -15,15 +15,15 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 #define VIRTUAL_WIDTH 4096
 #define VIRTUAL_HEIGHT 4096
 
-#define DISPLAY_LIST_SIZE 0x20000
+#define DISPLAY_LIST_SIZE 0x40000
 
-const GameState *__currentState;
 SceCtrlData __ctrlData;
 SceCtrlLatch __latchData;
 
 static int running;
 static char displayList[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
 static void *drawBuffer, *dispBuffer, *depthBuffer;
+static const GameState *__currentState;
 
 static int exitCallback(int arg1, int arg2, void *common) {
     running = 0;
@@ -48,7 +48,8 @@ static int setupCallbacks(void) {
 
 static void startFrame(void) {
     sceGuStart(GU_DIRECT, displayList);
-    sceGuClear(GU_COLOR_BUFFER_BIT);
+    sceGuClear(GU_DEPTH_BUFFER_BIT);
+    //sceGuClear(GU_COLOR_BUFFER_BIT);
 }
 
 static void endFrame(void) {
@@ -85,7 +86,8 @@ static void initGu(void) {
     // Enable texture support
     sceGuEnable(GU_TEXTURE_2D);
     // Clear screen with black
-    sceGuClearColor(0xFF000000);
+    //sceGuClearColor(0xFF000000);
+    sceGuClearDepth(0);
     // Finish initialization
     sceGuFinish();
     // Wait for render to finish
@@ -115,8 +117,7 @@ static void init(void) {
     // Set up callbacks
     setupCallbacks();
     // Set the initial game state
-    __currentState = &IN_GAME;
-    __currentState->init();
+    switchState(&GAME);
     // Set running state to 1
     running = 1;
 }
@@ -128,6 +129,21 @@ static void cleanup(void) {
     sceKernelExitGame();
 }
 
+void switchState(const GameState *new) {
+    if (__currentState != NULL) {
+        __currentState->cleanup();
+    }
+    __currentState = new;
+    __currentState->init();
+
+    startFrame();
+    __currentState->firstRender();
+    endFrame();
+    startFrame();
+    __currentState->firstRender();
+    endFrame();
+}
+
 int main(void) {
     init();
     unsigned long now, prev;
@@ -137,15 +153,15 @@ int main(void) {
         // Poll input
         sceCtrlReadBufferPositive(&__ctrlData, 1);
         sceCtrlReadLatch(&__latchData);
-        // Tick current frame
+        // Update the current state
         float delta = ((float)(now - prev)) / 1000000.0f;
         __currentState->update(delta);
-        // Prepare next frame
+        // Render the current state
         startFrame();
-        // Render current state
         __currentState->render();
-        // Display new frame
         endFrame();
+        // Lazy load textures
+        tickLoader();
         prev = now;
     }
     cleanup();
