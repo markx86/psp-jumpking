@@ -44,9 +44,8 @@ void initLoader(void) {
 }
 
 // (TODO) Implement lazy loading (async loading)
-void tickLoader(void) {
-    sceDisplayWaitVblank();
-    while (sceDisplayIsVblank()) {
+void tickLoader(unsigned long start, const unsigned long cycleDeltaT) {
+    while (sceKernelLibcClock() - start < cycleDeltaT) {
         LoaderLazyJob *job = &lazyJobs[queueStart];
         if (job->status == LAZYJOB_BUSY) {
             unsigned int size;
