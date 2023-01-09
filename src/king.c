@@ -1,18 +1,25 @@
 #include "king.h"
 #include "state.h"
 #include <string.h>
+#include <math.h>
+
+#define PLAYER_BLOCK_WIDTH (PLAYER_SPRITE_WIDTH / LEVEL_BLOCK_SIZE)
+#define PLAYER_BLOCK_HEIGHT (PLAYER_SPRITE_HEIGHT / LEVEL_BLOCK_SIZE)
+
+#define PLAYER_BLOCK_HALFW (PLAYER_BLOCK_WIDTH / 2)
+#define PLAYER_BLOCK_HALFH (PLAYER_BLOCK_HEIGHT / 2)
 
 // Physics constants
 #define PLAYER_MAX_VSPEED 450.0f
 #define PLAYER_MAX_HSPEED 100.0f
-#define PLAYER_GRAVITY 13.5f
+#define PLAYER_GRAVITY 11.5f
 
 // Status constants
 #define PLAYER_CHARGING_SPEED (PLAYER_MAX_VSPEED * 2.0f)
-#define PLAYER_STUN_TIME 5.5f
+#define PLAYER_STUN_TIME 1.0f
 #define PLAYER_MAX_FALL_HEIGHT (SCREEN_HEIGHT / 2.0f)
 
-#define PLAYER_MAP_COORDS(px, py) { ((px) / LEVEL_BLOCK_WIDTH), ((py) / LEVEL_BLOCK_HEIGHT)}
+#define PLAYER_MAP_COORDS(px, py) { ((px) / LEVEL_BLOCK_SIZE), ((py) / LEVEL_BLOCK_SIZE)}
 #define PLAYER_GET_SPRITE(idx) (player.graphics.sprites + PLAYER_SPRITE_WIDTH * PLAYER_SPRITE_HEIGHT * 4 * (idx))
 #define BORDER_OFFSET ((SCREEN_WIDTH - PLAYER_SPRITE_WIDTH) / 2.0f)
 
@@ -28,6 +35,16 @@ typedef enum {
     SPRITE_HITWALL,
 } SpriteIndex;
 
+typedef enum {
+    COLLMOD_NOWIND = 1,
+    COLLMOD_WATER = 2,
+    COLLMOD_SAND = 4,
+    COLLMOD_QUARK = 8,
+    COLLMOD_ICE = 16,
+    COLLMOD_SNOW = 32,
+    COLLMOD_ADJPOS = 64,
+} CollisionModifier;
+
 typedef struct {
     float x, y;
     float vx, vy;
@@ -39,14 +56,11 @@ typedef struct {
 } PlayerInput;
 
 typedef struct {
-    char inAir : 1;
-    char hitWall : 1;
-    char hitFloor : 1;
-    char maxJumpPower : 1;
-    char stunned : 1;
-    char reserved : 3;
+    char inAir;
+    char hitWallMidair;
+    char maxJumpPower;
+    char stunned;
     float jumpPower;
-    float fallDistance;
     float stunTime;
 } PlayerStatus;
 
@@ -67,11 +81,28 @@ typedef struct {
     PlayerGraphics graphics;
 } Player;
 
+static char blockPropertiesMap[] = {
+    0,
+    COLLMOD_ADJPOS,
+    COLLMOD_ADJPOS,
+    COLLMOD_ADJPOS,
+    COLLMOD_ADJPOS,
+    COLLMOD_ADJPOS,
+    0,
+    COLLMOD_ICE | COLLMOD_ADJPOS,
+    COLLMOD_SNOW | COLLMOD_ADJPOS,
+    COLLMOD_SAND,
+    COLLMOD_NOWIND,
+    COLLMOD_WATER,
+    COLLMOD_QUARK
+};
+
 static Player player;
 
 void kingCreate(void) {
     memset(&player, 0, sizeof(Player));
     player.graphics.sprites = loadTextureVram("host0://assets/king/base/regular.qoi", NULL, NULL);
+    player.physics.y = 32.0f;
     player.graphics.spriteIndex = SPRITE_HITFLOOR;
     player.graphics.sprite = PLAYER_GET_SPRITE(player.graphics.spriteIndex);
 }
@@ -91,7 +122,20 @@ void kingUpdate(float delta, LevelScreen *screen) {
                 player.status.jumpPower = 0.0f;
             }
         } else {
-            player.status.inAir = 0;
+            int mapX = player.graphics.sx / LEVEL_BLOCK_SIZE;
+            int mapY = player.graphics.sy / LEVEL_BLOCK_SIZE;
+            int isOnSolidGround = 0;
+            for (int x = -PLAYER_BLOCK_HALFW; x < PLAYER_BLOCK_HALFW; x++) {
+                isOnSolidGround |= LEVEL_BLOCK_ISSOLID(screen->blocks[mapY][mapX + x]);
+            }
+            player.status.inAir = !isOnSolidGround;
+            
+            // Update physics
+            {
+                if (player.status.inAir) {
+                    player.physics.vx = player.input.direction * PLAYER_MAX_HSPEED;
+                }
+            }
         }
     }
 
@@ -110,23 +154,20 @@ void kingUpdate(float delta, LevelScreen *screen) {
 
         // Update status
         {
-            // Update stunned status
-            if (player.status.stunned) {
-                if (player.status.stunTime < PLAYER_STUN_TIME) {
-                    player.status.stunTime += delta;
-                } else {
-                    player.status.stunned = 0;
-                    player.status.stunTime = PLAYER_STUN_TIME;
-                }
+            // Update stunned timer
+            if (player.status.stunTime > 0) {
+                player.status.stunTime -= delta;
             }
+
             // Un-stun the player if input was recieved
             // and the cooldown time has elapsed.
-            if (!player.status.stunned && (player.input.jumping || player.input.direction)) {
-                player.status.hitFloor = 0;
+            if (player.status.stunned && player.status.stunTime <= 0 && (player.input.jumping || player.input.direction)) {
+                player.status.stunned = 0;
             }
+
             // Check if the player is pressing the jump button
             // and, if true, build up jump power.
-            if (player.input.jumping) {
+            if (!player.status.stunned && player.input.jumping) {
                 player.status.jumpPower += PLAYER_CHARGING_SPEED * delta;
                 player.status.maxJumpPower = player.status.jumpPower >= PLAYER_MAX_VSPEED;
             }
@@ -162,148 +203,171 @@ void kingUpdate(float delta, LevelScreen *screen) {
                 player.physics.vy -= PLAYER_GRAVITY;
             }
         }
+    }
 
-        // Update status
-        {
-            if (player.status.fallDistance > PLAYER_MAX_FALL_HEIGHT) {
-                // If the maximum fall time was reached,
-                // the player will be stunned when they hit the floor.
-                player.status.stunned = 1;
-                player.status.fallDistance = 0.0f;
-            } else if (!player.status.stunned && player.physics.vy) {
-                // If the player is falling and the fall time has
-                // not reached its maximum value, count up the fall time.
-                player.status.fallDistance += player.physics.vy * delta;
+    // Compute new player position
+    float newX = player.physics.x + player.physics.vx * delta;
+    float newY = player.physics.y + player.physics.vy * delta;
+    // Convert new player position to screen coordinates
+    short newSX = ((short) newX) + (LEVEL_SCREEN_PXWIDTH / 2);
+    short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
+
+    // Compute player's map coordinates
+    // NOTE: add one in case we are moving from left to right or up to down to account
+    //       for the size of the block. This has to be done because the block coordinates
+    //       in the collision map are relative to the top-left corner of the block.
+    short mapX = newSX / LEVEL_BLOCK_SIZE + (player.physics.vx > 0.0f);
+    short mapY = (newSY - PLAYER_SPRITE_HALFH) / LEVEL_BLOCK_SIZE + (player.physics.vy < 0.0f);
+    // Get collision info
+    int minDist2 = -1;          // the distance of the closest block that has collided with the player
+    short collX, collY;         // the screen coordinates of the collision (relative to the top-left corner of the block)
+    short collMapX, collMapY;   // the map coordinates of the collision (relative to the top-left corner of the block)
+    short collOffX, collOffY;   // the coordinates of the collision relative to the player sprite center's screen coordinates
+    LevelScreenBlock collBlock; // the block the player has collided with
+    char collModifiers = 0;     // the collision modifiers
+    // Loop through all the blocks the player's sprite is occupying
+    for (short y = -PLAYER_BLOCK_HALFH; y < PLAYER_BLOCK_HALFH; y++) {
+        for (short x = -PLAYER_BLOCK_HALFW; x < PLAYER_BLOCK_HALFW; x++) {
+            int lx = mapX + x;
+            int ly = mapY + y;
+            LevelScreenBlock block = screen->blocks[ly][lx];
+            // Update the collision modifiers
+            collModifiers |= blockPropertiesMap[block];
+            if (LEVEL_BLOCK_ISSOLID(block)) {
+                // If the player is colliding with a block
+                // compute the distance of the collision relative
+                // to the center of the player's sprite
+                int dist2 = x * x + y * y;
+                if (minDist2 < 0 || dist2 <= minDist2) {
+                    // If this is the closest collision,
+                    // store the collision information
+                    minDist2 = dist2;
+                    collX = lx * LEVEL_BLOCK_SIZE;
+                    collY = ly * LEVEL_BLOCK_SIZE;
+                    collMapX = lx;
+                    collMapY = ly;
+                    collOffX = x * LEVEL_BLOCK_SIZE;
+                    collOffY = y * LEVEL_BLOCK_SIZE;
+                    collBlock = block;
+                }
             }
         }
     }
 
-    //// Compute new player position
-    //float newX = player.physics.x + player.physics.vx * delta;
-    //float newY = player.physics.y + player.physics.vy * delta;
-    //// Compute new screen position
-    //short newSX = ((short) newX) + (LEVEL_SCREEN_PXWIDTH / 2);
-    //short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
-    //
-    //LevelScreenBlock block;
-//
-    //short coordsTL[] = PLAYER_MAP_COORDS(newSX - PLAYER_SPRITE_HALFW, newSY - PLAYER_SPRITE_HALFH);
-    //short coordsTR[] = PLAYER_MAP_COORDS(newSX + PLAYER_SPRITE_HALFW, newSY - PLAYER_SPRITE_HALFH);
-    //short coordsBL[] = PLAYER_MAP_COORDS(newSX - PLAYER_SPRITE_HALFW, newSY + PLAYER_SPRITE_HALFH);
-    //short coordsBR[] = PLAYER_MAP_COORDS(newSX + PLAYER_SPRITE_HALFW, newSY + PLAYER_SPRITE_HALFH);
-    //LevelScreenBlock blockTL = screen->blocks[coordsTL[1]][coordsTL[0]];
-    //LevelScreenBlock blockTR = screen->blocks[coordsTR[1]][coordsTR[0]];
-    //LevelScreenBlock blockBL = screen->blocks[coordsBL[1]][coordsBL[0]];
-    //LevelScreenBlock blockBR = screen->blocks[coordsBR[1]][coordsBR[0]];
-//
-    //LevelScreenBlock blockT = (blockTL) ? blockTL : blockTR;
-    //LevelScreenBlock blockB = (blockBL) ? blockBL : blockBR;
-    //block = blockT | blockB;
-    //if (block && block != BLOCK_FAKE) {
-    //    if (player.status.inAir) {
-    //        if (blockB) {
-    //            // Update status
-    //            if (player.status.stunned) {
-    //                player.status.hitFloor = 1;
-    //            }
-    //            player.status.hitWall = 0;
-    //            player.status.inAir = 0;
-    //            // Update physics
-    //            player.physics.vy = 0.0f;
-    //            player.physics.vx = 0.0f;
-    //        } else {
-    //            // Update physics
-    //            player.physics.vy *= -0.5f;
-    //        }
-    //        player.physics.y = (float)(((short) newY));
-    //    }
-    //} else {
-    //    // Update status
-    //    player.status.inAir = 1;
-    //    // Update physics
-    //    player.physics.y = newY;
-//
-    //    // If the player is jumping up, reset the jump power
-    //    // (NOTE) This is there because the player can be falling,
-    //    //        and still be on a solid block (eg. sand block);
-    //    // (TODO) This still needs to be implemented properly
-    //    if (player.physics.vy > 0.0f) {
-    //        player.status.jumpPower = 0.0f;
-    //    }
-    //}
-//
-    //// The player cannot hit a block with both the left side and the right side
-    //// so it's (or at least should be) ok to or the results
-    //LevelScreenBlock blockL = (blockTL) ? blockTL : blockBL;
-    //LevelScreenBlock blockR = (blockTR) ? blockTR : blockBR;
-    //block = blockL | blockR;
-    //if (block && block != BLOCK_FAKE) {
-    //    if (player.status.inAir) {
-    //        // Update status
-    //        player.status.hitWall = 1;
-    //        // Update physics
-    //        player.physics.vx *= -0.5f;
-    //    }
-    //    player.physics.x = (float)((short) newX);
-    //} else {
-    //    // Update physics
-    //    player.physics.x = newX;
-    //}
+    // If the player has collided with something...
+    if (minDist2 >= 0) {
+        if (collModifiers & COLLMOD_ADJPOS) {
+            minDist2 = -1;
+            int adjX = -1, adjY = -1;
+            int deltaX, deltaY;
+            int refX = player.graphics.sx;
+            int refY = player.graphics.sy - PLAYER_SPRITE_HALFH;
+            // Find the closest free block to the collision block.
+            for (short y = -2; y <= 2; y++) {
+                for (short x = -2; x <= 2; x++) {
+                    int lx = collMapX + x;
+                    int ly = collMapY + y;
+                    if (!LEVEL_BLOCK_ISSOLID(screen->blocks[ly][lx])) {
+                        int newAdjX = lx * LEVEL_BLOCK_SIZE;
+                        int newAdjY = ly * LEVEL_BLOCK_SIZE;
+                        int newDeltaX = (newAdjX > collX) ? (newAdjX - collX) : (collX - newAdjX);
+                        int newDeltaY = (newAdjY > collY) ? (newAdjY - collY) : (collY - newAdjY);
+                        int dx = newAdjX + LEVEL_BLOCK_HALF - refX;
+                        int dy = newAdjY + LEVEL_BLOCK_HALF - refY;
+                        int dist2 = (dx * dx + dy * dy) + (newDeltaX * newDeltaX + newDeltaY * newDeltaY) * 2;
+                        if (minDist2 < 0 || dist2 <= minDist2) {
+                            if (dist2 == minDist2) {
+                                // If the distance between two free blocks is the same,
+                                // prioritize the block with the least distance from the
+                                // center of the collision block.
+                                if (newDeltaX < deltaX) {
+                                    adjX = newAdjX;
+                                    deltaX = newDeltaX;
+                                }
+                                if (newDeltaY < deltaY) {
+                                    adjY = newAdjY;
+                                    deltaY = newDeltaY;
+                                }
+                            } else {
+                                adjX = newAdjX;
+                                adjY = newAdjY;
+                                deltaX = newDeltaX;
+                                deltaY = newDeltaY;
+                            }
+                            minDist2 = dist2;
+                        }
+                    }
+                }
+            }
 
-    // Check for y-collisions and scroll the screen
-    if (player.physics.y < 0.0f) {
-        if (player.status.stunned) {
-            player.status.hitFloor = 1;
-        }
-        player.physics.vx = 0.0f;
-        player.physics.vy = 0.0f;
-        player.physics.y = 0.0f;
-        player.status.hitWall = 0;
-    } else if (player.physics.y > SCREEN_HEIGHT) {
-        player.physics.y = 0.0f;
-    }
+            // If the correction applied to the player position was
+            // greater along the Y-axis, then the collision was a vertical one
+            int wasVerticalCollision = deltaX < deltaY;
 
-    // Check for x-collisions
-    if (player.physics.x < -BORDER_OFFSET) {
-        player.physics.x = -BORDER_OFFSET;
-        if (player.status.inAir) {
-            player.physics.vx = -(player.physics.vx / 2.0f);
-            player.status.hitWall = 1;
+            // Compute new corrected player screen coordinates and position
+            if (wasVerticalCollision) {
+                newSY = adjY - collOffY + PLAYER_SPRITE_HALFH;
+                newY = (float) (LEVEL_SCREEN_PXHEIGHT - newSY);
+            } else {
+                newSX = adjX - collOffX;
+                newX = ((float) newSX) - ((float) LEVEL_SCREEN_PXWIDTH / 2);
+            }
+
+            // If the player is in the air and has collided vertically, while falling,
+            // and the block it has collided with is not a slope.
+            player.status.inAir = player.status.inAir && (!wasVerticalCollision || LEVEL_BLOCK_ISSLOPE(collBlock) || player.physics.vy >= 0.0f);
+
+            // If the player has hit the floor and has reached it's terminal falling velocity,
+            // the player has to be stunned.
+            // TODO: handle slopes
+            player.status.stunned = !player.status.inAir && player.physics.vy <= -PLAYER_MAX_VSPEED;
+            // If the player has been stunned set the timer.
+            player.status.stunTime = player.status.stunned * PLAYER_STUN_TIME;
+
+            // If the player is in the air and has collided with something
+            // horizontally, they've hit a wall.
+            // TODO: handle slopes
+            player.status.hitWallMidair = player.status.inAir && !wasVerticalCollision;
+
+            // TODO: - apply speed dampening effects
+            //       - handle slopes and sliding
+            player.physics.vy = !wasVerticalCollision * player.physics.vy;
+            player.physics.vx = !wasVerticalCollision * -player.physics.vx * 0.5f;
         }
-    } else if (player.physics.x > BORDER_OFFSET) {
-        player.physics.x = BORDER_OFFSET;
-        if (player.status.inAir) {
-            player.physics.vx = -(player.physics.vx / 2.0f);
-            player.status.hitWall = 1;
-        }
+
+        // TODO: take into account special modifiers that don't necessarily
+        //       modify the player's position
     }
 
     // Update physics
-    {     
-        player.physics.x += player.physics.vx * delta;
-        player.physics.y += player.physics.vy * delta;
+    {
+        player.physics.x = newX;
+        player.physics.y = newY;
     }
 
     // Update graphics
     {
-        // Flip the sprite according to the player direction.
-        if (player.input.direction == +1) {
-            player.graphics.spriteUOffset = 0;
-        } else if (player.input.direction == -1) {
-            player.graphics.spriteUOffset = PLAYER_SPRITE_WIDTH;
+        // If the player is not stunned...
+        if (!player.status.stunned) {
+            // Flip the sprite according to the player direction.
+            if (player.input.direction == +1) {
+                player.graphics.spriteUOffset = 0;
+            } else if (player.input.direction == -1) {
+                player.graphics.spriteUOffset = PLAYER_SPRITE_WIDTH;
+            }
         }
 
         // Update screeen coordinates.
-        player.graphics.sx = ((short) player.physics.x) + (LEVEL_SCREEN_PXWIDTH / 2);
-        player.graphics.sy = LEVEL_SCREEN_PXHEIGHT - ((short) player.physics.y);
+        player.graphics.sx = newSX;
+        player.graphics.sy = newSY;
 
         // Find the appropriate sprite index for the current frame.
         SpriteIndex newSpriteIndex;
         if (player.status.jumpPower) {
             newSpriteIndex = SPRITE_CHARGING;
-        } else if (player.status.hitFloor) {
+        } else if (player.status.stunned) {
             newSpriteIndex = SPRITE_HITFLOOR;
-        } else if (player.status.hitWall) {
+        } else if (player.status.hitWallMidair) {
             newSpriteIndex = SPRITE_HITWALL;
         } else if (player.status.inAir) {
             newSpriteIndex = (player.physics.vy > 0.0f) ? SPRITE_JUMPING : SPRITE_FALLING;
@@ -331,6 +395,7 @@ void kingUpdate(float delta, LevelScreen *screen) {
                     break;
             }
         } else {
+            player.graphics.walkAnimCycle = 0;
             newSpriteIndex = SPRITE_STANDING;
         }
 
@@ -341,15 +406,23 @@ void kingUpdate(float delta, LevelScreen *screen) {
             player.graphics.sprite = PLAYER_GET_SPRITE(player.graphics.spriteIndex);
         }
     }
+
+    if (player.status.inAir < 0) {
+        panic("WAT");
+    }
+}
+
+static int abs(int a) {
+    return (a < 0) ? -a : a;
 }
 
 void kingRender(short *outSX, short *outSY) {
     Vertex *vertices = (Vertex*) sceGuGetMemory(2 * sizeof(Vertex));
     // Translate the player's level screen coordinates
     // to the PSP's screen coordinates.
-    vertices[0].x = player.graphics.sx - (PLAYER_SPRITE_WIDTH / 2);
+    vertices[0].x = player.graphics.sx - PLAYER_SPRITE_HALFW;
     vertices[0].y = (player.graphics.sy - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT)) - PLAYER_SPRITE_HEIGHT;
-    vertices[1].x = player.graphics.sx + (PLAYER_SPRITE_WIDTH / 2);
+    vertices[1].x = player.graphics.sx + PLAYER_SPRITE_HALFW;
     vertices[1].y = (player.graphics.sy - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT));
     // Set both vertices to have a depth of 1 so that the player's
     // sprite sits on top of the background.
@@ -383,6 +456,87 @@ void kingRender(short *outSX, short *outSY) {
     // which is stored in RAM.
     *outSX = player.graphics.sx;
     *outSY = player.graphics.sy;
+    
+    /*
+    // Test
+    short mapX = (player.graphics.sx) / LEVEL_BLOCK_SIZE;
+    short mapY = (player.graphics.sy - PLAYER_SPRITE_HALFH) / LEVEL_BLOCK_SIZE;
+    int minDist2 = -1;
+    short collX, collY;
+    short collOffX, collOffY;
+    for (short y = -PLAYER_BLOCK_HALFH; y < PLAYER_BLOCK_HALFH; y++) {
+        for (short x = -PLAYER_BLOCK_HALFW; x < PLAYER_BLOCK_HALFW; x++) {
+            int lx = mapX + x;
+            int ly = mapY + y;
+            if (LEVEL_BLOCK_ISSOLID(cs->blocks[ly][lx])) {
+                int dist2 = x * x + y * y;
+                if (minDist2 < 0 || dist2 <= minDist2) {
+                    minDist2 = dist2;
+                    collX = lx * LEVEL_BLOCK_SIZE;
+                    collY = ly * LEVEL_BLOCK_SIZE;
+                    collOffX = x * LEVEL_BLOCK_SIZE;
+                    collOffY = y * LEVEL_BLOCK_SIZE;
+                }
+            }
+        }
+    }
+    if (minDist2 < 0) {
+        return;
+    }
+    drawRect(collX, collY - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT), 4, 8, 8, 0xFF0000FF);
+    
+    //int playerLX = player.graphics.sx - PLAYER_SPRITE_HALFW;
+    //int playerRX = player.graphics.sx + PLAYER_SPRITE_HALFW;
+    //int playerTY = player.graphics.sy - PLAYER_SPRITE_HEIGHT;
+    //int playerBY = player.graphics.sy;
+    //int collLX = collX;
+    //int collRX = collX + LEVEL_BLOCK_SIZE;
+    //int collTY = collY;
+    //int collBY = collY + LEVEL_BLOCK_SIZE;
+    //int rectLX = (playerLX > collLX) ? playerLX : collLX;
+    //int rectRX = (playerRX < collRX) ? playerRX : collRX;
+    //int rectTY = (playerTY > collTY) ? playerTY : collTY;
+    //int rectBY = (playerBY < collBY) ? playerBY : collBY;
+    //int width = (rectRX > rectLX) ? (rectRX - rectLX) : 0;
+    //int height = (rectBY > rectTY) ? (rectBY - rectTY) : 0;
+    //panic("w:%d h:%d, plx:%d blx:%d, prx:%d brx:%d", width, height, playerLX, collLX, playerRX,collRX);
+    //drawRect(rectLX, rectTY - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT), 5, width, height, 0xFF00FF00);
+    //drawRect(playerLX, playerTY - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT), 3, playerRX - playerLX, playerBY - playerTY, 0xFFFF00FF);
+    int collMapX = collX / LEVEL_BLOCK_SIZE;
+    int collMapY = collY / LEVEL_BLOCK_SIZE;
+    float minDist2f = -1.0f;
+    int newX = -1, newY = -1;
+    for (short y = -2; y <= 2; y++) {
+        for (short x = -2; x <= 2; x++) {
+            int lx = collMapX + x;
+            int ly = collMapY + y;
+            //drawRect(lx * LEVEL_BLOCK_SIZE, ly * LEVEL_BLOCK_SIZE - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT), 3, 8, 8, 0xFFFF00FF);
+            if (!LEVEL_BLOCK_ISSOLID(cs->blocks[ly][lx])) {
+                float dx = lx + 0.5f - (float) mapX;
+                float dy = ly + 0.5f - (float) mapY;
+                float dist2f = dx * dx + dy * dy;
+                if (minDist2f < 0.0f || dist2f <= minDist2f) {
+                    int tmpNewX = lx * LEVEL_BLOCK_SIZE;
+                    int tmpNewY = ly * LEVEL_BLOCK_SIZE;
+                    if (dist2f == minDist2f) {
+                        if (abs(tmpNewX - collX) < abs(newX - collX)) {
+                            newX = tmpNewX;
+                        }
+                        if (abs(tmpNewY - collY) < abs(newY - collY)) {
+                            newY = tmpNewY;
+                        }
+                    } else {
+                        newX = tmpNewX;
+                        newY = tmpNewY;
+                    }
+                    minDist2f = dist2f;
+                }
+            }
+        }
+    }
+    drawRect(newX, newY - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT), 5, 8, 8, 0xFFFF0000);
+    drawRect(newX - collOffX - PLAYER_SPRITE_HALFW, -(LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT) + newY - collOffY - PLAYER_SPRITE_HALFH, 3, PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT, 0xFF00FFFF);
+    */
 }
 
 void kingDestroy(void) {

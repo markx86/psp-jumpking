@@ -3,14 +3,17 @@
 
 #include "alloc.h"
 
-#define LEVEL_BLOCK_WIDTH 8
-#define LEVEL_BLOCK_HEIGHT 8
+#define LEVEL_BLOCK_SIZE 8
+#define LEVEL_BLOCK_HALF (LEVEL_BLOCK_SIZE / 2)
 
 #define LEVEL_SCREEN_WIDTH 60
 #define LEVEL_SCREEN_HEIGHT 45
 
-#define LEVEL_SCREEN_PXWIDTH (LEVEL_SCREEN_WIDTH * LEVEL_BLOCK_WIDTH)
-#define LEVEL_SCREEN_PXHEIGHT (LEVEL_SCREEN_HEIGHT * LEVEL_BLOCK_HEIGHT)
+#define LEVEL_SCREEN_PXWIDTH (LEVEL_SCREEN_WIDTH * LEVEL_BLOCK_SIZE)
+#define LEVEL_SCREEN_PXHEIGHT (LEVEL_SCREEN_HEIGHT * LEVEL_BLOCK_SIZE)
+
+#define LEVEL_BLOCK_ISSOLID(b) (!(b == BLOCK_EMPTY || b == BLOCK_FAKE || b == BLOCK_NOWIND))
+#define LEVEL_BLOCK_ISSLOPE(b) (b == BLOCK_SLOPE_TL || b == BLOCK_SLOPE_TR || b == BLOCK_SLOPE_BL || b == BLOCK_SLOPE_BR)
 
 typedef enum {
     BLOCK_EMPTY,
@@ -33,7 +36,7 @@ typedef struct {
     unsigned char wind;
     char teleportIndex;
     unsigned char blocks[LEVEL_SCREEN_HEIGHT][LEVEL_SCREEN_WIDTH];
-} LevelScreen;
+} __attribute__((packed)) LevelScreen;
 
 void loadLevel(void);
 LevelScreen *getLevelScreen(unsigned int index);

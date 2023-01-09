@@ -4,6 +4,8 @@ import pathlib
 import argparse
 import imageio.v3 as iio
 
+TOTAL_SCREENS = 164
+
 TILE_WIDTH = 60
 TILE_HEIGHT = 45
 
@@ -44,6 +46,23 @@ RGB_SAND = Color([255, 106, 0])
 RGB_NOWIND = Color([255, 255, 255])
 RGB_WATER = Color([0, 170, 170])
 RGB_QUARK = Color([182, 255, 0])
+
+class Line:
+    def __init__(self, x, y, l, b):
+        self.x = x
+        self.y = y
+        self.length = l
+        self.block = b
+        self._free = True
+    
+    def take(self):
+        self._free = False
+    
+    def free(self):
+        return self._free
+    
+    def __str__(self):
+        return "Line(x:{}, y:{}, l:{}, b:{})".format(self.x, self.y, self.length, self.block)
 
 class Screen:
     def __init__(self, rgba, mx, my):
@@ -103,6 +122,12 @@ class Screen:
         arr.extend(self._blocks)
         return bytearray(arr)
 
+def is_block_solid(block):
+    return not (block == BLOCK_EMPTY or block == BLOCK_FAKE or block == BLOCK_NOWIND or block == BLOCK_QUARK or block == BLOCK_WATER)
+
+def is_block_slope(block):
+    return (block == BLOCK_SLOPE_TL or block == BLOCK_SLOPE_BL or block == BLOCK_SLOPE_TR or block == BLOCK_SLOPE_BR)
+
 def is_block_edge(rgba, x, y):
     if x >= TILE_WIDTH or y >= TILE_HEIGHT:
         return True
@@ -133,9 +158,16 @@ if __name__ == "__main__":
     rgba = iio.imread(input_file, mode="RGBA")
     width = rgba.shape[1]
     height = rgba.shape[2]
+
+    screens = 0
     with open(output_file, "wb") as file:
         for x in range(0, width, TILE_WIDTH):
             for y in range(0, height, TILE_HEIGHT):
                 screen = Screen(rgba, x, y)
                 file.write(screen.to_bytearray())
+                screens += 1
+                if screens == TOTAL_SCREENS:
+                    break
+            if screens == TOTAL_SCREENS:
+                break
         file.flush()
