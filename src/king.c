@@ -406,14 +406,6 @@ void kingUpdate(float delta, LevelScreen *screen) {
             player.graphics.sprite = PLAYER_GET_SPRITE(player.graphics.spriteIndex);
         }
     }
-
-    if (player.status.inAir < 0) {
-        panic("WAT");
-    }
-}
-
-static int abs(int a) {
-    return (a < 0) ? -a : a;
 }
 
 void kingRender(short *outSX, short *outSY) {
@@ -456,87 +448,6 @@ void kingRender(short *outSX, short *outSY) {
     // which is stored in RAM.
     *outSX = player.graphics.sx;
     *outSY = player.graphics.sy;
-    
-    /*
-    // Test
-    short mapX = (player.graphics.sx) / LEVEL_BLOCK_SIZE;
-    short mapY = (player.graphics.sy - PLAYER_SPRITE_HALFH) / LEVEL_BLOCK_SIZE;
-    int minDist2 = -1;
-    short collX, collY;
-    short collOffX, collOffY;
-    for (short y = -PLAYER_BLOCK_HALFH; y < PLAYER_BLOCK_HALFH; y++) {
-        for (short x = -PLAYER_BLOCK_HALFW; x < PLAYER_BLOCK_HALFW; x++) {
-            int lx = mapX + x;
-            int ly = mapY + y;
-            if (LEVEL_BLOCK_ISSOLID(cs->blocks[ly][lx])) {
-                int dist2 = x * x + y * y;
-                if (minDist2 < 0 || dist2 <= minDist2) {
-                    minDist2 = dist2;
-                    collX = lx * LEVEL_BLOCK_SIZE;
-                    collY = ly * LEVEL_BLOCK_SIZE;
-                    collOffX = x * LEVEL_BLOCK_SIZE;
-                    collOffY = y * LEVEL_BLOCK_SIZE;
-                }
-            }
-        }
-    }
-    if (minDist2 < 0) {
-        return;
-    }
-    drawRect(collX, collY - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT), 4, 8, 8, 0xFF0000FF);
-    
-    //int playerLX = player.graphics.sx - PLAYER_SPRITE_HALFW;
-    //int playerRX = player.graphics.sx + PLAYER_SPRITE_HALFW;
-    //int playerTY = player.graphics.sy - PLAYER_SPRITE_HEIGHT;
-    //int playerBY = player.graphics.sy;
-    //int collLX = collX;
-    //int collRX = collX + LEVEL_BLOCK_SIZE;
-    //int collTY = collY;
-    //int collBY = collY + LEVEL_BLOCK_SIZE;
-    //int rectLX = (playerLX > collLX) ? playerLX : collLX;
-    //int rectRX = (playerRX < collRX) ? playerRX : collRX;
-    //int rectTY = (playerTY > collTY) ? playerTY : collTY;
-    //int rectBY = (playerBY < collBY) ? playerBY : collBY;
-    //int width = (rectRX > rectLX) ? (rectRX - rectLX) : 0;
-    //int height = (rectBY > rectTY) ? (rectBY - rectTY) : 0;
-    //panic("w:%d h:%d, plx:%d blx:%d, prx:%d brx:%d", width, height, playerLX, collLX, playerRX,collRX);
-    //drawRect(rectLX, rectTY - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT), 5, width, height, 0xFF00FF00);
-    //drawRect(playerLX, playerTY - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT), 3, playerRX - playerLX, playerBY - playerTY, 0xFFFF00FF);
-    int collMapX = collX / LEVEL_BLOCK_SIZE;
-    int collMapY = collY / LEVEL_BLOCK_SIZE;
-    float minDist2f = -1.0f;
-    int newX = -1, newY = -1;
-    for (short y = -2; y <= 2; y++) {
-        for (short x = -2; x <= 2; x++) {
-            int lx = collMapX + x;
-            int ly = collMapY + y;
-            //drawRect(lx * LEVEL_BLOCK_SIZE, ly * LEVEL_BLOCK_SIZE - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT), 3, 8, 8, 0xFFFF00FF);
-            if (!LEVEL_BLOCK_ISSOLID(cs->blocks[ly][lx])) {
-                float dx = lx + 0.5f - (float) mapX;
-                float dy = ly + 0.5f - (float) mapY;
-                float dist2f = dx * dx + dy * dy;
-                if (minDist2f < 0.0f || dist2f <= minDist2f) {
-                    int tmpNewX = lx * LEVEL_BLOCK_SIZE;
-                    int tmpNewY = ly * LEVEL_BLOCK_SIZE;
-                    if (dist2f == minDist2f) {
-                        if (abs(tmpNewX - collX) < abs(newX - collX)) {
-                            newX = tmpNewX;
-                        }
-                        if (abs(tmpNewY - collY) < abs(newY - collY)) {
-                            newY = tmpNewY;
-                        }
-                    } else {
-                        newX = tmpNewX;
-                        newY = tmpNewY;
-                    }
-                    minDist2f = dist2f;
-                }
-            }
-        }
-    }
-    drawRect(newX, newY - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT), 5, 8, 8, 0xFFFF0000);
-    drawRect(newX - collOffX - PLAYER_SPRITE_HALFW, -(LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT) + newY - collOffY - PLAYER_SPRITE_HALFH, 3, PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT, 0xFF00FFFF);
-    */
 }
 
 void kingDestroy(void) {
