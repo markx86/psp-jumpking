@@ -31,8 +31,8 @@ typedef enum {
     SPRITE_CHARGING,
     SPRITE_JUMPING,
     SPRITE_FALLING,
-    SPRITE_HITFLOOR,
-    SPRITE_HITWALL,
+    SPRITE_STUNNED,
+    SPRITE_HITWALLMIDAIR,
 } SpriteIndex;
 
 typedef enum {
@@ -103,7 +103,7 @@ void kingCreate(void) {
     memset(&player, 0, sizeof(Player));
     player.graphics.sprites = loadTextureVram("host0://assets/king/base/regular.qoi", NULL, NULL);
     player.physics.y = 32.0f;
-    player.graphics.spriteIndex = SPRITE_HITFLOOR;
+    player.graphics.spriteIndex = SPRITE_STANDING;
     player.graphics.sprite = PLAYER_GET_SPRITE(player.graphics.spriteIndex);
 }
 
@@ -367,9 +367,9 @@ void kingUpdate(float delta, LevelScreen *screen) {
         if (player.status.jumpPower) {
             newSpriteIndex = SPRITE_CHARGING;
         } else if (player.status.stunned) {
-            newSpriteIndex = SPRITE_HITFLOOR;
+            newSpriteIndex = SPRITE_STUNNED;
         } else if (player.status.hitWallMidair) {
-            newSpriteIndex = SPRITE_HITWALL;
+            newSpriteIndex = SPRITE_HITWALLMIDAIR;
         } else if (player.status.inAir) {
             newSpriteIndex = (player.physics.vy > 0.0f) ? SPRITE_JUMPING : SPRITE_FALLING;
         } else if (player.physics.vx && player.input.direction) {
@@ -390,14 +390,13 @@ void kingUpdate(float delta, LevelScreen *screen) {
                     break;
                 case 7:
                     newSpriteIndex = SPRITE_WALKING1;
-                    break;
                 default:
                     player.graphics.walkAnimCycle = 0;
                     break;
             }
         } else {
-            player.graphics.walkAnimCycle = 0;
             newSpriteIndex = SPRITE_STANDING;
+            player.graphics.walkAnimCycle = 0;
         }
 
         // Update sprite pointer if the new sprite is different
