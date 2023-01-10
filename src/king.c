@@ -115,20 +115,21 @@ void kingUpdate(float delta, LevelScreen *screen) {
             // the player is in the air.
             player.status.inAir = 1;
             // If the player is jumping up, reset the jump power.
-            // (NOTE) This is there because the player can be falling,
-            //        and still be on a solid block (eg. sand block).
-            // (TODO) This still needs to be implemented properly.
+            // NOTE: This is there because the player can be falling,
+            //       and still be on a solid block (eg. sand block).
+            // TODO: This still needs to be implemented properly.
             if (player.physics.vy > 0.0f) {
                 player.status.jumpPower = 0.0f;
             }
         } else {
+            // Check if the player is standing on solid ground.
             int mapX = player.graphics.sx / LEVEL_BLOCK_SIZE;
             int mapY = player.graphics.sy / LEVEL_BLOCK_SIZE;
-            int isOnSolidGround = 0;
             for (int x = -PLAYER_BLOCK_HALFW; x < PLAYER_BLOCK_HALFW; x++) {
-                isOnSolidGround |= LEVEL_BLOCK_ISSOLID(screen->blocks[mapY][mapX + x]);
+                LevelScreenBlock block = screen->blocks[mapY][mapX + x];
+                player.status.inAir |= LEVEL_BLOCK_ISSOLID(block) && !LEVEL_BLOCK_ISSLOPE(block);
             }
-            player.status.inAir = !isOnSolidGround;
+            player.status.inAir = !player.status.inAir;
             
             // Update physics
             {
@@ -302,7 +303,7 @@ void kingUpdate(float delta, LevelScreen *screen) {
 
             // If the correction applied to the player position was
             // greater along the Y-axis, then the collision was a vertical one
-            int wasVerticalCollision = deltaX < deltaY;
+            int wasVerticalCollision = deltaX <= deltaY;
 
             // Compute new corrected player screen coordinates and position
             if (wasVerticalCollision) {

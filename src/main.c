@@ -68,16 +68,16 @@ static void endFrame(unsigned long start, const unsigned long cycleDeltaT) {
 
 static void initGu(void) {
     // Reserve VRAM for draw, display and depth buffers.
-    drawBuffer = vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888));
-    dispBuffer = vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888));
-    depthBuffer = vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444));
+    drawBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
+    dispBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
+    depthBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444)));
     // Initialize the graphics utility.
     sceGuInit();
     sceGuStart(GU_DIRECT, displayList);
     // Set up the buffers.
-    sceGuDrawBuffer(GU_PSM_8888, vrelptr(drawBuffer), BUFFER_WIDTH);
-    sceGuDispBuffer(SCREEN_WIDTH, SCREEN_HEIGHT, vrelptr(dispBuffer), BUFFER_WIDTH);
-    sceGuDepthBuffer(vrelptr(depthBuffer), BUFFER_WIDTH);
+    sceGuDrawBuffer(GU_PSM_8888, drawBuffer, BUFFER_WIDTH);
+    sceGuDispBuffer(SCREEN_WIDTH, SCREEN_HEIGHT, dispBuffer, BUFFER_WIDTH);
+    sceGuDepthBuffer(depthBuffer, BUFFER_WIDTH);
     // Set up viewport.
     sceGuOffset((VIRTUAL_WIDTH - SCREEN_WIDTH) / 2, (VIRTUAL_HEIGHT - SCREEN_HEIGHT) / 2);
     sceGuViewport(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -106,9 +106,9 @@ static void endGu(void) {
     sceGuDisplay(GU_FALSE);
     sceGuTerm();
     // Remember to free the buffers.
-    vfree(depthBuffer);
-    vfree(dispBuffer);
-    vfree(drawBuffer);
+    vfree(vabsptr(depthBuffer));
+    vfree(vabsptr(dispBuffer));
+    vfree(vabsptr(drawBuffer));
 }
 
 static void init(void) {
