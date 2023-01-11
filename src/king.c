@@ -1,7 +1,6 @@
 #include "king.h"
 #include "state.h"
 #include <string.h>
-#include <math.h>
 
 #define PLAYER_BLOCK_WIDTH (PLAYER_SPRITE_WIDTH / LEVEL_BLOCK_SIZE)
 #define PLAYER_BLOCK_HEIGHT (PLAYER_SPRITE_HEIGHT / LEVEL_BLOCK_SIZE)
@@ -17,11 +16,7 @@
 // Status constants
 #define PLAYER_CHARGING_SPEED (PLAYER_MAX_VSPEED * 2.0f)
 #define PLAYER_STUN_TIME 1.0f
-#define PLAYER_MAX_FALL_HEIGHT (SCREEN_HEIGHT / 2.0f)
-
-#define PLAYER_MAP_COORDS(px, py) { ((px) / LEVEL_BLOCK_SIZE), ((py) / LEVEL_BLOCK_SIZE)}
-#define PLAYER_GET_SPRITE(idx) (player.graphics.sprites + PLAYER_SPRITE_WIDTH * PLAYER_SPRITE_HEIGHT * 4 * (idx))
-#define BORDER_OFFSET ((SCREEN_WIDTH - PLAYER_SPRITE_WIDTH) / 2.0f)
+#define PLAYER_GET_SPRITE(idx) (playerSprites + PLAYER_SPRITE_WIDTH * PLAYER_SPRITE_HEIGHT * 4 * (idx))
 
 typedef enum {
     SPRITE_STANDING,
@@ -70,7 +65,6 @@ typedef struct {
     short walkAnimCycle;
     short spriteUOffset;
     SpriteIndex spriteIndex;
-    char *sprites;
     char *sprite;
 } PlayerGraphics;
 
@@ -98,10 +92,11 @@ static char blockPropertiesMap[] = {
 };
 
 static Player player;
+static char *playerSprites;
 
 void kingCreate(void) {
     memset(&player, 0, sizeof(Player));
-    player.graphics.sprites = loadTextureVram("host0://assets/king/base/regular.qoi", NULL, NULL);
+    playerSprites = loadTextureVram("host0://assets/king/base/regular.qoi", NULL, NULL);
     player.physics.y = 32.0f;
     player.graphics.spriteIndex = SPRITE_STANDING;
     player.graphics.sprite = PLAYER_GET_SPRITE(player.graphics.spriteIndex);
@@ -328,7 +323,7 @@ void kingUpdate(float delta, LevelScreen *screen) {
             // If the player is in the air and has collided with something
             // horizontally, they've hit a wall.
             // TODO: handle slopes
-            player.status.hitWallMidair = player.status.inAir && !wasVerticalCollision;
+            player.status.hitWallMidair = (player.status.inAir || player.physics.vy > 0.0f) && !wasVerticalCollision;
 
             // TODO: - apply speed dampening effects
             //       - handle slopes and sliding
@@ -408,14 +403,14 @@ void kingUpdate(float delta, LevelScreen *screen) {
     }
 }
 
-void kingRender(short *outSX, short *outSY) {
+void kingRender(short *outSX, short *outSY, unsigned int currentScroll) {
     Vertex *vertices = (Vertex*) sceGuGetMemory(2 * sizeof(Vertex));
     // Translate the player's level screen coordinates
     // to the PSP's screen coordinates.
     vertices[0].x = player.graphics.sx - PLAYER_SPRITE_HALFW;
-    vertices[0].y = (player.graphics.sy - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT)) - PLAYER_SPRITE_HEIGHT;
+    vertices[0].y = (player.graphics.sy - currentScroll) - PLAYER_SPRITE_HEIGHT;
     vertices[1].x = player.graphics.sx + PLAYER_SPRITE_HALFW;
-    vertices[1].y = (player.graphics.sy - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT));
+    vertices[1].y = (player.graphics.sy - currentScroll);
     // Set both vertices to have a depth of 1 so that the player's
     // sprite sits on top of the background.
     vertices[0].z = 1;
@@ -451,5 +446,5 @@ void kingRender(short *outSX, short *outSY) {
 }
 
 void kingDestroy(void) {
-    unloadTextureVram(player.graphics.sprites);
+    unloadTextureVram(playerSprites);
 };

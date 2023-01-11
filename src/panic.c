@@ -20,7 +20,6 @@ void panic(const char *fmt, ...) {
     va_end(list);
 
     pspDebugScreenInit();
-    pspDebugScreenClear();
     pspDebugScreenPrintf("%s\n\n[ PRESS X TO RESET ]", msg);
  
     do {

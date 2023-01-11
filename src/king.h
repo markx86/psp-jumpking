@@ -11,7 +11,7 @@
 
 void kingCreate(void);
 void kingUpdate(float delta, LevelScreen *screen);
-void kingRender(short *outSX, short *outSY);
+void kingRender(short *outSX, short *outSY, unsigned int currentScroll);
 void kingDestroy(void);
 
 #endif

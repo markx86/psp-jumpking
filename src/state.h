@@ -23,14 +23,20 @@ extern SceCtrlLatch __latchData;
 // Essential functions needed by (almost) every state.
 extern void switchState(const GameState *new);
 extern void setClearFlags(int flags);
+extern void setBackgroundData(void *data, unsigned int width, unsigned int height, unsigned int psm);
+extern void cleanBackgroundAt(void *data, short x, short y, short w, short h, unsigned int stride);
+extern void setBackgroundScroll(int offset);
 
 // Stuff needed for rendering.
-#define SCREEN_WIDTH 480
-#define SCREEN_HEIGHT 272
-// (NOTE) It's better to only use one vertex type,
-//        so I've defined one here for the whole game.
-//        It uses 16-bit texture (UV) coordinates and 
-//        16-bit vertex coordinates.
+#define STATE_SCREEN_WIDTH 480
+#define STATE_SCREEN_HEIGHT 360
+#define PSP_SCREEN_WIDTH 480
+#define PSP_SCREEN_HEIGHT 272
+#define SCREEN_MAX_SCROLL (STATE_SCREEN_HEIGHT - PSP_SCREEN_HEIGHT)
+// NOTE: It's better to only use one vertex type,
+//       so I've defined one here for the whole game.
+//       It uses 16-bit texture (UV) coordinates and 
+//       16-bit vertex coordinates.
 typedef struct {
     short u, v;
     short x, y, z;

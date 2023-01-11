@@ -81,10 +81,10 @@ unsigned int getVramMemorySize(unsigned int width, unsigned int height, unsigned
         case GU_PSM_5551:
         case GU_PSM_4444:
         case GU_PSM_T16:
-            return 2 * width * height;
+            return (width * height) << 1;
         case GU_PSM_8888:
         case GU_PSM_T32:
-            return 4 * width * height;
+            return (width * height) << 2;
         default:
             return 0;
     }

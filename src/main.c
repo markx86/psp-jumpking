@@ -2,7 +2,7 @@
 #include <pspdisplay.h>
 #include <pspctrl.h>
 #include <pspgu.h>
-#include <time.h>
+#include <string.h>
 #include "alloc.h"
 #include "state.h"
 
@@ -10,7 +10,7 @@ PSP_MODULE_INFO("Jump King", PSP_MODULE_USER, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 
 #define BUFFER_WIDTH 512
-#define BUFFER_HEIGHT SCREEN_HEIGHT
+#define BUFFER_HEIGHT STATE_SCREEN_HEIGHT
 
 #define VIRTUAL_WIDTH 4096
 #define VIRTUAL_HEIGHT 4096
@@ -76,12 +76,12 @@ static void initGu(void) {
     sceGuStart(GU_DIRECT, displayList);
     // Set up the buffers.
     sceGuDrawBuffer(GU_PSM_8888, drawBuffer, BUFFER_WIDTH);
-    sceGuDispBuffer(SCREEN_WIDTH, SCREEN_HEIGHT, dispBuffer, BUFFER_WIDTH);
+    sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, dispBuffer, BUFFER_WIDTH);
     sceGuDepthBuffer(depthBuffer, BUFFER_WIDTH);
     // Set up viewport.
-    sceGuOffset((VIRTUAL_WIDTH - SCREEN_WIDTH) / 2, (VIRTUAL_HEIGHT - SCREEN_HEIGHT) / 2);
-    sceGuViewport(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT);
-    sceGuScissor(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    sceGuOffset((VIRTUAL_WIDTH - PSP_SCREEN_WIDTH) / 2, (VIRTUAL_HEIGHT - PSP_SCREEN_HEIGHT) / 2);
+    sceGuViewport(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT);
+    sceGuScissor(0, 0, PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT);
     sceGuEnable(GU_SCISSOR_TEST);
     // Set up depth test.
     sceGuDepthRange(65535, 0);
@@ -146,6 +146,35 @@ void switchState(const GameState *new) {
 
 void setClearFlags(int flags) {
     clearFlags = flags;
+}
+
+void setBackgroundData(void *data, unsigned int width, unsigned int height, unsigned int psm) {
+    unsigned int size = getVramMemorySize(width, height, psm);
+    memcpy(vabsptr(drawBuffer), data, size);
+    memcpy(vabsptr(dispBuffer), data, size);
+    memset(vabsptr(depthBuffer), 0, getVramMemorySize(width, height, GU_PSM_4444));
+}
+
+void cleanBackgroundAt(void *data, short x, short y, short w, short h, unsigned int stride) {
+    unsigned int *pixels = data;
+    unsigned int *disp = vabsptr(dispBuffer);
+    for (short hh = 0; hh < h; hh++) {
+        for (short ww = 0; ww < w; ww++) {
+            int offset = (y + hh) * stride + (x + ww);
+            disp[offset] = pixels[offset];
+        }
+    }
+}
+
+void setBackgroundScroll(int offset) {
+    if (offset > SCREEN_MAX_SCROLL) {
+        panic("Scroll offset too big. Got %d but the maximum is %d", offset, SCREEN_MAX_SCROLL);
+    } else if (offset < 0) {
+        panic("Scroll offset is negative. Got %d", offset);
+    }
+    unsigned int bufferOffset = getVramMemorySize(BUFFER_WIDTH, (unsigned int) offset, GU_PSM_8888);
+    sceGuDrawBuffer(GU_PSM_8888, ((char *) drawBuffer) + bufferOffset, BUFFER_WIDTH);
+    sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, ((char *) dispBuffer) + bufferOffset, BUFFER_WIDTH);
 }
 
 int main(void) {

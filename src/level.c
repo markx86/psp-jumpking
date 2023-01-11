@@ -138,38 +138,25 @@ LevelScreen *getLevelScreen(unsigned int index) {
 }
 
 void renderLevelScreen(void) {
-    Vertex *vertices = sceGuGetMemory(2 * sizeof(Vertex));
-    vertices[0].x = 0;
-    vertices[0].y = 0;
-    vertices[0].z = 0;
-    vertices[0].u = 0;
-    vertices[0].v = LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT;
-
-    vertices[1].x = SCREEN_WIDTH;
-    vertices[1].y = SCREEN_HEIGHT;
-    vertices[1].z = 0;
-    vertices[1].u = LEVEL_SCREEN_PXWIDTH;
-    vertices[1].v = LEVEL_SCREEN_PXHEIGHT;
-    
-    sceGuTexMode(GU_PSM_8888, 0, 0, 0);
-    sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, loadedScreensHandles[SCREEN_THIS].texture);
-    sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
-    sceGuTexFilter(GU_LINEAR, GU_LINEAR);
-    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
+    setBackgroundData(loadedScreensHandles[SCREEN_THIS].texture, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_PXHEIGHT, GU_PSM_8888);
 }
 
-void renderLevelScreenSection(short x, short y, short width, short height) {
+void forceCleanLevelArtifactAt(short x, short y, short width, short height) {
+    cleanBackgroundAt(loadedScreensHandles[SCREEN_THIS].texture, x, y, width, height, LEVEL_SCREEN_IMAGEW);
+}
+
+void renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll) {
     Vertex *vertices = sceGuGetMemory(2 * sizeof(Vertex));
     vertices[0].u = x;
     vertices[0].v = y;
-    vertices[0].x = vertices[0].u;
-    vertices[0].y = vertices[0].v - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT);
+    vertices[0].x = x;
+    vertices[0].y = y - currentScroll;
     vertices[0].z = 0;
 
     vertices[1].u = x + width;
     vertices[1].v = y + height;
-    vertices[1].x = vertices[1].u;
-    vertices[1].y = vertices[1].v - (LEVEL_SCREEN_PXHEIGHT - SCREEN_HEIGHT);
+    vertices[1].x = x + width;
+    vertices[1].y = (y - currentScroll) + height;
     vertices[1].z = 0;
     
     sceGuTexMode(GU_PSM_8888, 0, 0, 0);
