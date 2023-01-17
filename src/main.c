@@ -51,16 +51,14 @@ static void startFrame(void) {
     sceGuClear(clearFlags);
 }
 
-static void endFrame(unsigned long start, const unsigned long cycleDeltaT) {
+static void endFrame(void) {
     // Start rendering bitch
     sceGuFinish();
-    // Tick the loader while we can
-    tickLoader(start, cycleDeltaT);
     // Wait for render to finish.
     sceGuSync(GU_SYNC_WHAT_DONE, GU_SYNC_FINISH);
     // Wait for the next V-blank interval.
     if (!sceDisplayIsVblank()) {
-        sceDisplayWaitVblankStart();
+        sceDisplayWaitVblankStartCB();
     }
     // Swap the buffers.
     sceGuSwapBuffers();
@@ -179,7 +177,6 @@ void setBackgroundScroll(int offset) {
 
 int main(void) {
     init();
-    const unsigned long cycleDeltaT = 1.0f / sceDisplayGetFramePerSec();
     unsigned long start, end;
     end = sceKernelLibcClock();
     while (running) {
@@ -193,7 +190,7 @@ int main(void) {
         // Render the current state.
         startFrame();
         __currentState->render();
-        endFrame(start, cycleDeltaT);
+        endFrame();
         end = start;
     }
     cleanup();

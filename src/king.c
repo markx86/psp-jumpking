@@ -16,6 +16,7 @@
 // Status constants
 #define PLAYER_CHARGING_SPEED (PLAYER_MAX_VSPEED * 2.0f)
 #define PLAYER_STUN_TIME 1.0f
+#define PLAYER_MAX_FALL_TIME 2.5f
 #define PLAYER_GET_SPRITE(idx) (playerSprites + PLAYER_SPRITE_WIDTH * PLAYER_SPRITE_HEIGHT * 4 * (idx))
 
 typedef enum {
@@ -31,13 +32,14 @@ typedef enum {
 } SpriteIndex;
 
 typedef enum {
+    COLLMOD_NONE = 0,
     COLLMOD_NOWIND = 1,
     COLLMOD_WATER = 2,
     COLLMOD_SAND = 4,
     COLLMOD_QUARK = 8,
     COLLMOD_ICE = 16,
     COLLMOD_SNOW = 32,
-    COLLMOD_ADJPOS = 64,
+    COLLMOD_SOLID = 64,
 } CollisionModifier;
 
 typedef struct {
@@ -57,6 +59,7 @@ typedef struct {
     char stunned;
     float jumpPower;
     float stunTime;
+    float fallTime;
 } PlayerStatus;
 
 typedef struct {
@@ -76,15 +79,15 @@ typedef struct {
 } Player;
 
 static char blockPropertiesMap[] = {
-    0,
-    COLLMOD_ADJPOS,
-    COLLMOD_ADJPOS,
-    COLLMOD_ADJPOS,
-    COLLMOD_ADJPOS,
-    COLLMOD_ADJPOS,
-    0,
-    COLLMOD_ICE | COLLMOD_ADJPOS,
-    COLLMOD_SNOW | COLLMOD_ADJPOS,
+    COLLMOD_NONE,
+    COLLMOD_SOLID,
+    COLLMOD_SOLID,
+    COLLMOD_SOLID,
+    COLLMOD_SOLID,
+    COLLMOD_SOLID,
+    COLLMOD_NONE,
+    COLLMOD_SOLID | COLLMOD_ICE,
+    COLLMOD_SOLID | COLLMOD_SNOW,
     COLLMOD_SAND,
     COLLMOD_NOWIND,
     COLLMOD_WATER,
@@ -109,12 +112,19 @@ void kingUpdate(float delta, LevelScreen *screen) {
             // If the vertical velocity is not zero,
             // the player is in the air.
             player.status.inAir = 1;
-            // If the player is jumping up, reset the jump power.
-            // NOTE: This is there because the player can be falling,
-            //       and still be on a solid block (eg. sand block).
-            // TODO: This still needs to be implemented properly.
             if (player.physics.vy > 0.0f) {
+                // If the player is jumping up (meaning the vertical velocity is positive),
+                // reset the jump power.
+                // NOTE: This is there because the player can be falling,
+                //       and still be on a solid block (eg. sand block).
+                // TODO: This still needs to be implemented properly.
                 player.status.jumpPower = 0.0f;
+                // Also reset the fall time.
+                player.status.fallTime = 0.0f;
+            } else if (player.status.fallTime == 0.0f) {
+                // If the player is falling (meaning the vertical velocity is negative),
+                // count up the fall time.
+                player.status.fallTime += delta;
             }
         } else {
             // Check if the player is standing on solid ground.
@@ -252,7 +262,7 @@ void kingUpdate(float delta, LevelScreen *screen) {
 
     // If the player has collided with something...
     if (minDist2 >= 0) {
-        if (collModifiers & COLLMOD_ADJPOS) {
+        if (collModifiers & COLLMOD_SOLID) {
             minDist2 = -1;
             int adjX = -1, adjY = -1;
             int deltaX, deltaY;
@@ -309,14 +319,16 @@ void kingUpdate(float delta, LevelScreen *screen) {
                 newX = ((float) newSX) - ((float) LEVEL_SCREEN_PXWIDTH / 2);
             }
 
+            int isBlockSlope = LEVEL_BLOCK_ISSLOPE(collBlock);
+
             // If the player is in the air and has collided vertically, while falling,
             // and the block it has collided with is not a slope.
-            player.status.inAir = player.status.inAir && (!wasVerticalCollision || LEVEL_BLOCK_ISSLOPE(collBlock) || player.physics.vy >= 0.0f);
+            player.status.inAir = player.status.inAir && (!wasVerticalCollision || player.physics.vy >= 0.0f);
 
             // If the player has hit the floor and has reached it's terminal falling velocity,
             // the player has to be stunned.
             // TODO: handle slopes
-            player.status.stunned = !player.status.inAir && player.physics.vy <= -PLAYER_MAX_VSPEED;
+            player.status.stunned = !isBlockSlope && !player.status.inAir && player.status.fallTime > PLAYER_MAX_FALL_TIME;
             // If the player has been stunned set the timer.
             player.status.stunTime = player.status.stunned * PLAYER_STUN_TIME;
 
@@ -329,6 +341,9 @@ void kingUpdate(float delta, LevelScreen *screen) {
             //       - handle slopes and sliding
             player.physics.vy = !wasVerticalCollision * player.physics.vy;
             player.physics.vx = !wasVerticalCollision * -player.physics.vx * 0.5f;
+
+            // Reset the fall time if something was hit.
+            player.status.fallTime = 0.0f;
         }
 
         // TODO: take into account special modifiers that don't necessarily

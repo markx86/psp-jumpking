@@ -4,7 +4,6 @@
 #include <pspkerneltypes.h>
 
 void initLoader(void);
-void tickLoader(unsigned long start, const unsigned long cycleDeltaT);
 void endLoader(void);
 
 void lazySwapTextureRam(const char *path, void *dest);
