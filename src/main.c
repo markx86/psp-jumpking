@@ -146,8 +146,8 @@ void setClearFlags(int flags) {
     clearFlags = flags;
 }
 
-void setBackgroundData(void *data, unsigned int width, unsigned int height, unsigned int psm) {
-    unsigned int size = getVramMemorySize(width, height, psm);
+void setBackgroundData(void *data, unsigned int width, unsigned int height) {
+    unsigned int size = getVramMemorySize(width, height, GU_PSM_8888);
     memcpy(vabsptr(drawBuffer), data, size);
     memcpy(vabsptr(dispBuffer), data, size);
     memset(vabsptr(depthBuffer), 0, getVramMemorySize(width, height, GU_PSM_4444));

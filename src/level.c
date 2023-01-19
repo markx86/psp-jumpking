@@ -138,15 +138,44 @@ LevelScreen *getLevelScreen(unsigned int index) {
 }
 
 void renderLevelScreen(void) {
-    setBackgroundData(screenHandleCurrent.texture, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_PXHEIGHT, GU_PSM_8888);
+    setBackgroundData(screenHandleCurrent.texture, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_PXHEIGHT);
 }
 
 void forceCleanLevelArtifactAt(short x, short y, short width, short height) {
+    // Clamp x coordinate within the screen bounds.
+    if (x < 0) {
+        x = 0;
+    } else if (x + width >= LEVEL_SCREEN_PXWIDTH) {
+        x = LEVEL_SCREEN_PXWIDTH - width;
+    }
+
+    // Clamp y coordinate within the screen bounds.
+    if (y < 0) {
+        y = 0;
+    } else if (y + height >= LEVEL_SCREEN_PXHEIGHT) {
+        y = LEVEL_SCREEN_PXHEIGHT - height;
+    }
+    
     cleanBackgroundAt(screenHandleCurrent.texture, x, y, width, height, LEVEL_SCREEN_IMAGEW);
 }
 
 void renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll) {
     Vertex *vertices = sceGuGetMemory(2 * sizeof(Vertex));
+
+    // Clamp x coordinate within the screen bounds.
+    if (x < 0) {
+        x = 0;
+    } else if (x + width >= LEVEL_SCREEN_PXWIDTH) {
+        x = LEVEL_SCREEN_PXWIDTH - width;
+    }
+
+    // Clamp y coordinate within the screen bounds.
+    if (y < 0) {
+        y = 0;
+    } else if (y + height >= LEVEL_SCREEN_PXHEIGHT) {
+        y = LEVEL_SCREEN_PXHEIGHT - height;
+    }
+    
     vertices[0].u = x;
     vertices[0].v = y;
     vertices[0].x = x;

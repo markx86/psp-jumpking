@@ -98,7 +98,7 @@ static int loaderAsyncCallback(int arg1, int jobPtr, void *argp) {
             }
             break;
         
-        // This should never be run
+        // This should never be executed.
         default:
             break;
     }

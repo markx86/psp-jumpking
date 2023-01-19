@@ -121,6 +121,10 @@ static void kingDoCollision(float *pNewX, float *pNewY, short *pNewSX, short *pN
         for (short x = -PLAYER_BLOCK_HALFW; x < PLAYER_BLOCK_HALFW; x++) {
             int lx = mapX + x;
             int ly = mapY + y;
+            // Check if the block is in the current screen...
+            if (lx < 0 || lx >= LEVEL_SCREEN_WIDTH || ly < 0 || ly >= LEVEL_SCREEN_HEIGHT) {
+                continue;
+            }
             LevelScreenBlock block = screen->blocks[ly][lx];
             // Update the collision modifiers
             collModifiers |= blockPropertiesMap[block];
@@ -158,6 +162,10 @@ static void kingDoCollision(float *pNewX, float *pNewY, short *pNewSX, short *pN
                 for (short x = -2; x <= 2; x++) {
                     int lx = collMapX + x;
                     int ly = collMapY + y;
+                    // Check if the block is in the current screen...
+                    if (lx < 0 || lx >= LEVEL_SCREEN_WIDTH || ly < 0 || ly >= LEVEL_SCREEN_HEIGHT) {
+                        continue;
+                    }
                     if (!LEVEL_BLOCK_ISSOLID(screen->blocks[ly][lx])) {
                         int newAdjX = lx * LEVEL_BLOCK_SIZE;
                         int newAdjY = ly * LEVEL_BLOCK_SIZE;
@@ -361,13 +369,17 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
     // Convert new player position to screen coordinates.
     short newSX = ((short) newX) + (LEVEL_SCREEN_PXWIDTH / 2);
     short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
+    
+    // If the player is within the leve screen bounds,
+    // handle collisions.
+    kingDoCollision(&newX, &newY, &newSX, &newSY, screen);
 
-    if (newSY - PLAYER_SPRITE_HEIGHT < 0) {
+    if (newSY - PLAYER_SPRITE_HALFH < 0) {
         // If the player has left the screen from the top side...
-        newSY += LEVEL_SCREEN_PXHEIGHT - PLAYER_SPRITE_HEIGHT;
-        newY -= LEVEL_SCREEN_PXHEIGHT - PLAYER_SPRITE_HEIGHT;
+        newSY += LEVEL_SCREEN_PXHEIGHT;
+        newY -= LEVEL_SCREEN_PXHEIGHT;
         *outScreen += 1;
-    } else if (newSY > LEVEL_SCREEN_PXHEIGHT) {
+    } else if (newSY - PLAYER_SPRITE_HALFH >= LEVEL_SCREEN_PXHEIGHT) {
         // If the player has left the screen from the bottom side...
         newSY -= LEVEL_SCREEN_PXHEIGHT;
         newY += LEVEL_SCREEN_PXHEIGHT;
@@ -382,10 +394,6 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
         newSX -= LEVEL_SCREEN_PXWIDTH;
         newX -= LEVEL_SCREEN_PXWIDTH;
         *outScreen = screen->teleportIndex;
-    } else {
-        // If the player is within the leve screen bounds,
-        // handle collisions.
-        kingDoCollision(&newX, &newY, &newSX, &newSY, screen);
     }
 
     // Update physics
