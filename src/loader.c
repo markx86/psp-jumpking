@@ -7,11 +7,11 @@
 #include <pspgu.h>
 #include <string.h>
 
-#define LOADER_ARENA_SIZE 0x20000
 #define LOADER_MAX_LAZYJOBS 5
 #define LOADER_MAX_PATH_LENGTH 64
 
 typedef enum {
+    LAZYJOB_IDLE,
     LAZYJOB_PENDING,
     LAZYJOB_SEEK,
     LAZYJOB_REWIND,
@@ -29,7 +29,7 @@ typedef struct {
     SceUID fd;
 } LoaderLazyJob;
 
-static SceUID loaderArena, asyncCallbackId;
+static SceUID asyncCallbackId;
 static int queueEnd, queueStart;
 static LoaderLazyJob lazyJobs[LOADER_MAX_LAZYJOBS];
 
@@ -48,7 +48,9 @@ static int loaderAsyncCallback(int arg1, int jobPtr, void *argp) {
     SceInt64 res;
     QoiDescriptor desc;
     LoaderLazyJob *job = (LoaderLazyJob *) jobPtr;
-    sceIoPollAsync(job->fd, &res);
+    if (sceIoPollAsync(job->fd, &res) < 0) {
+        lazyLoaderPanic("Could not poll fd %d", job->fd);
+    }
     switch (job->status) {
         case LAZYJOB_SEEK:
             sceIoLseekAsync(job->fd, 0, PSP_SEEK_END);
@@ -56,33 +58,35 @@ static int loaderAsyncCallback(int arg1, int jobPtr, void *argp) {
             break;
         
         case LAZYJOB_REWIND:
-            job->status = LAZYJOB_READ;
             job->size = (unsigned int) res;
             sceIoLseekAsync(job->fd, 0, PSP_SEEK_SET);
+            job->status = LAZYJOB_READ;
             break;
         
         case LAZYJOB_READ:
+            job->readBuffer = malloc(job->size);
+            sceIoReadAsync(job->fd, job->readBuffer, job->size);
             job->status = LAZYJOB_CLOSE;
-            job->readBuffer = allocateMemory(loaderArena, job->size);
-            sceIoReadAsync(job->fd, job->dest, job->size);
             break;
         
         case LAZYJOB_CLOSE:
-            job->status = LAZYJOB_DONE;
             if (job->size != (unsigned int) res) {
                 lazyLoaderPanic("Read bytes mismatch: read %lu bytes out of %u", res, job->fd);
             }
             sceIoCloseAsync(job->fd);
-            qoiDecode(job->readBuffer, job->size, &desc, job->dest);
+            if (qoiDecode(job->readBuffer, job->size, &desc, job->dest)) {
+                lazyLoaderPanic("Failed to decode QOI");
+            }
+            job->status = LAZYJOB_DONE;
             break;
         
         case LAZYJOB_DONE:
-            job->status = LAZYJOB_PENDING;
-            freeMemory(loaderArena, job->readBuffer);
+            free(job->readBuffer);
             ++queueStart;
             if (queueStart == LOADER_MAX_LAZYJOBS) {
                 queueStart = 0;
             }
+            job->status = LAZYJOB_IDLE;
             job = &lazyJobs[queueStart];
             if (job->status == LAZYJOB_PENDING) {
                 job->status = LAZYJOB_SEEK;
@@ -107,7 +111,6 @@ void initLoader(void) {
     if (asyncCallbackId < 0) {
         panic("Failed to create async loader callback.");
     }
-    loaderArena = createArena("LoaderVPL", LOADER_ARENA_SIZE);
     memset(lazyJobs, 0, sizeof(lazyJobs));
     queueEnd = 0;
     queueStart = 0;
@@ -115,7 +118,6 @@ void initLoader(void) {
 
 void endLoader(void) {
     sceKernelDeleteCallback(asyncCallbackId);
-    destroyArena(loaderArena);
 }
 
 void *readFile(const char *path, unsigned int *outSize) {
@@ -126,7 +128,7 @@ void *readFile(const char *path, unsigned int *outSize) {
     }
     SceOff size = sceIoLseek(fd, 0, PSP_SEEK_END);
     sceIoLseek(fd, 0, PSP_SEEK_SET);
-    void *buffer = allocateMemory(loaderArena, size);
+    void *buffer = malloc(size);
     unsigned long bytes = sceIoRead(fd, buffer, size);
     sceIoClose(fd);
     if (bytes < size) {
@@ -142,8 +144,8 @@ void *readFile(const char *path, unsigned int *outSize) {
 void lazySwapTextureRam(const char *path, void *dest) {
 #define swapTexturePanic(msg, ...) panic("Error while swapping texture %s\n" msg, path, ##__VA_ARGS__)
     LoaderLazyJob *job = &lazyJobs[queueEnd];
-    if (queueEnd == LOADER_MAX_LAZYJOBS) {
-        queueEnd = 0;
+    while (job->status != LAZYJOB_IDLE) {
+        sceKernelDelayThreadCB(1000);
     }
     strcpy(job->path, path);
     job->dest = dest;
@@ -157,7 +159,9 @@ void lazySwapTextureRam(const char *path, void *dest) {
     } else {
         job->status = LAZYJOB_PENDING;
     }
-    ++queueEnd;
+    if (++queueEnd == LOADER_MAX_LAZYJOBS) {
+        queueEnd = 0;
+    }
 #undef swapTexturePanic
 }
 
@@ -194,40 +198,10 @@ void *loadTextureVram(const char *path, unsigned int *outWidth, unsigned int *ou
     return texture;
 }
 
-void *loadTextureRam(const char *path, SceUID *pool, unsigned int *outWidth, unsigned int *outHeight) {
-    unsigned int size;
-    SceUID targetPool = *pool;
-    void *buffer = readFile(path, &size);
-    QoiDescriptor desc;
-    if (targetPool < 0) {
-        qoiDecode(buffer, size, &desc, NULL);
-        unsigned int allocSize = desc.width * desc.height * desc.channels;
-        targetPool = createPool(filenameFromPath(path), allocSize);
-    }
-    void *texture = allocatePool(targetPool);
-    if (qoiDecode(buffer, size, &desc, texture)) {
-        loadTexturePanic("Failed to decode QOI");
-    }
-    unloadFile(buffer);
-    if (outWidth != NULL) {
-        *outWidth = desc.width;
-    }
-    if (outHeight != NULL) {
-        *outHeight = desc.height;
-    }
-    *pool = targetPool;
-    return texture;
-#undef loadTexturePanic
-}
-
 void unloadFile(void *buffer) {
-    freeMemory(loaderArena, buffer);
+    free(buffer);
 }
 
 void unloadTextureVram(void *texturePtr) {
     vfree(texturePtr);
-}
-
-void unloadTextureRam(SceUID pool, void *texturePtr) {
-    freePool(pool, texturePtr);
 }

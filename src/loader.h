@@ -15,7 +15,4 @@ void unloadFile(void *buffer);
 void *loadTextureVram(const char *path, unsigned int *outWidth, unsigned int *outHeight);
 void unloadTextureVram(void *texturePtr);
 
-void *loadTextureRam(const char *path, SceUID *pool, unsigned int *outWidth, unsigned int *outHeight);
-void unloadTextureRam(SceUID pool, void *texturePtr);
-
 #endif

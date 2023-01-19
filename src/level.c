@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define LEVEL_MAX_TEXTURE_HANDLES 3
 #define LEVEL_SCREEN_MAGIC 0xBABE
 
 #define LEVEL_SCREEN_IMAGEW 512
@@ -15,7 +14,6 @@
 
 typedef struct {
     unsigned short totalScreens;
-    SceUID pool;
     LevelScreen *screens;
 } Level;
 
@@ -35,11 +33,12 @@ typedef enum {
 
 static Level level;
 static LevelScreen *lastScreenReturned;
-static LevelScreenHandle loadedScreensHandles[LEVEL_MAX_TEXTURE_HANDLES];
-static __attribute__((section(".bss"), aligned(16))) char texturesPool[LEVEL_SCREEN_BYTES * LEVEL_MAX_TEXTURE_HANDLES];
+static LevelScreenHandle screenHandlePrevious;
+static LevelScreenHandle screenHandleCurrent;
+static LevelScreenHandle screenHandleNext;
+static __attribute__((section(".bss"), aligned(16))) char texturesPool[LEVEL_SCREEN_BYTES * 3];
 
-static void loadScreenImage(unsigned int handleIndex, LevelScreenLoadingType loadType) {
-    LevelScreenHandle *handle = &loadedScreensHandles[handleIndex];
+static void loadScreenImage(LevelScreenHandle *handle, LevelScreenLoadingType loadType) {
     if (handle->index >= level.totalScreens) {
         return;
     }
@@ -55,23 +54,24 @@ static void loadScreenImage(unsigned int handleIndex, LevelScreenLoadingType loa
     }
 }
 
-void loadLevel(void) {
+void loadLevel(unsigned int startScreen) {
     // Load the level data.
     unsigned int size;
     void *buffer = readFile("host0://assets/level.bin", &size);
     level.totalScreens = size / sizeof(LevelScreen);
-    level.pool = createPool("LevelPool", size);
-    level.screens = allocatePool(level.pool);
+    level.screens = malloc(size);
     memcpy(level.screens, buffer, size);
     unloadFile(buffer);
     // Initialize screen texture handles.
-    for (int i = 0; i < LEVEL_MAX_TEXTURE_HANDLES; i++) {
-        loadedScreensHandles[i].index = -1 + i;
-        loadedScreensHandles[i].texture = texturesPool + (i * LEVEL_SCREEN_BYTES);
-    }
+    screenHandlePrevious.index = startScreen - 1;
+    screenHandlePrevious.texture = texturesPool;
+    screenHandleCurrent.index = startScreen;
+    screenHandleCurrent.texture = texturesPool + LEVEL_SCREEN_BYTES;
+    screenHandleNext.index = startScreen + 1;
+    screenHandleNext.texture = texturesPool + LEVEL_SCREEN_BYTES * 2;
     // Load the appropriate screen textures.
     lastScreenReturned = NULL;
-    getLevelScreen(0);
+    getLevelScreen(startScreen);
 }
 
 LevelScreen *getLevelScreen(unsigned int index) {
@@ -81,7 +81,7 @@ LevelScreen *getLevelScreen(unsigned int index) {
         // Check if the screen data is intact
         // (it's a simple check but it's better than nothing).
         if (screen->magic != LEVEL_SCREEN_MAGIC) {
-            panic("Invalid screen %u: expected magic %X but found %X ", index, LEVEL_SCREEN_MAGIC, lastScreenReturned->magic);
+            panic("Invalid screen %u: expected magic %04X but found %04X", index, LEVEL_SCREEN_MAGIC, screen->magic);
         }
         // Check if the screen is the same as the last we returned.
         // If it is we don't need to load any new textures.
@@ -90,47 +90,47 @@ LevelScreen *getLevelScreen(unsigned int index) {
             // check which one we need to load.
             void *tmp;
             lastScreenReturned = screen;
-            if (index == loadedScreensHandles[SCREEN_NEXT].index) {
+            if (index == screenHandleNext.index) {
                 // If the requested screen is the next one relative to the current one...
                 // - shift each handle's indices
-                loadedScreensHandles[SCREEN_PREV].index = loadedScreensHandles[SCREEN_THIS].index;
-                loadedScreensHandles[SCREEN_THIS].index = index;
-                loadedScreensHandles[SCREEN_NEXT].index = index + 1;
+                screenHandlePrevious.index = screenHandleCurrent.index;
+                screenHandleCurrent.index = index;
+                screenHandleNext.index = index + 1;
                 // - swap the texture pointers
-                tmp = loadedScreensHandles[SCREEN_PREV].texture;
-                loadedScreensHandles[SCREEN_PREV].texture = loadedScreensHandles[SCREEN_THIS].texture;
-                loadedScreensHandles[SCREEN_THIS].texture = loadedScreensHandles[SCREEN_NEXT].texture;
-                loadedScreensHandles[SCREEN_NEXT].texture = tmp;
+                tmp = screenHandlePrevious.texture;
+                screenHandlePrevious.texture = screenHandleCurrent.texture;
+                screenHandleCurrent.texture = screenHandleNext.texture;
+                screenHandleNext.texture = tmp;
                 // - and finally load (lazily) the next screen.
-                loadScreenImage(SCREEN_NEXT, LOAD_LAZY);
-            } else if (index == loadedScreensHandles[SCREEN_PREV].index) {
+                loadScreenImage(&screenHandleNext, LOAD_LAZY);
+            } else if (index == screenHandlePrevious.index) {
                 // If the requested screen is the previous one relative to the current one...
                 // - shift each handle's indices
-                loadedScreensHandles[SCREEN_NEXT].index = loadedScreensHandles[SCREEN_THIS].index;
-                loadedScreensHandles[SCREEN_THIS].index = index;
-                loadedScreensHandles[SCREEN_PREV].index = index - 1;
+                screenHandleNext.index = screenHandleCurrent.index;
+                screenHandleCurrent.index = index;
+                screenHandlePrevious.index = index - 1;
                 // - swap the texture pointers
-                tmp = loadedScreensHandles[SCREEN_NEXT].texture;
-                loadedScreensHandles[SCREEN_NEXT].texture = loadedScreensHandles[SCREEN_THIS].texture;
-                loadedScreensHandles[SCREEN_THIS].texture = loadedScreensHandles[SCREEN_PREV].texture;
-                loadedScreensHandles[SCREEN_PREV].texture = tmp;
+                tmp = screenHandleNext.texture;
+                screenHandleNext.texture = screenHandleCurrent.texture;
+                screenHandleCurrent.texture = screenHandlePrevious.texture;
+                screenHandlePrevious.texture = tmp;
                 // - and finally load (lazily) the next screen.
-                loadScreenImage(SCREEN_PREV, LOAD_LAZY);
+                loadScreenImage(&screenHandlePrevious, LOAD_LAZY);
             } else {
                 // If the requested screen is completely new
                 // - change each handle's indices
-                loadedScreensHandles[SCREEN_PREV].index = index - 1;
-                loadedScreensHandles[SCREEN_THIS].index = index;
-                loadedScreensHandles[SCREEN_NEXT].index = index + 1;
+                screenHandlePrevious.index = index - 1;
+                screenHandleCurrent.index = index;
+                screenHandleNext.index = index + 1;
                 // Load the current screen immediately
                 // This will probably lag the game but
                 // that shouldn't be a problem as this is needed
                 // only when there is a horizontal transition.
-                loadScreenImage(SCREEN_THIS, LOAD_NOW);
+                loadScreenImage(&screenHandleCurrent, LOAD_NOW);
                 // Load the next and previous screen lazily as
                 // we shouldn't need the immediately.
-                loadScreenImage(SCREEN_PREV, LOAD_LAZY);
-                loadScreenImage(SCREEN_NEXT, LOAD_LAZY);
+                loadScreenImage(&screenHandleNext, LOAD_LAZY);
+                loadScreenImage(&screenHandlePrevious, LOAD_LAZY);
             }
         }
     }
@@ -138,11 +138,11 @@ LevelScreen *getLevelScreen(unsigned int index) {
 }
 
 void renderLevelScreen(void) {
-    setBackgroundData(loadedScreensHandles[SCREEN_THIS].texture, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_PXHEIGHT, GU_PSM_8888);
+    setBackgroundData(screenHandleCurrent.texture, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_PXHEIGHT, GU_PSM_8888);
 }
 
 void forceCleanLevelArtifactAt(short x, short y, short width, short height) {
-    cleanBackgroundAt(loadedScreensHandles[SCREEN_THIS].texture, x, y, width, height, LEVEL_SCREEN_IMAGEW);
+    cleanBackgroundAt(screenHandleCurrent.texture, x, y, width, height, LEVEL_SCREEN_IMAGEW);
 }
 
 void renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll) {
@@ -160,14 +160,13 @@ void renderLevelScreenSection(short x, short y, short width, short height, unsig
     vertices[1].z = 0;
     
     sceGuTexMode(GU_PSM_8888, 0, 0, 0);
-    sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, loadedScreensHandles[SCREEN_THIS].texture);
+    sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGBA);
     sceGuTexFilter(GU_LINEAR, GU_LINEAR);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
 }
 
 void unloadLevel(void) {
-    freePool(level.pool, level.screens);
-    destroyPool(level.pool);
+    free(level.screens);
     level.screens = NULL;
 }

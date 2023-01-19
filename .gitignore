@@ -4,7 +4,6 @@ build/
 .vscode/
 assets/**/*
 !assets/README.md
-scripts/converter/input-dir
 **/*.png
 **/*.qoi
 **/*.bin

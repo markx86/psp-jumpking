@@ -34,11 +34,11 @@ typedef enum {
 typedef struct {
     unsigned short magic;
     unsigned char wind;
-    char teleportIndex;
+    unsigned char teleportIndex;
     unsigned char blocks[LEVEL_SCREEN_HEIGHT][LEVEL_SCREEN_WIDTH];
 } __attribute__((packed)) LevelScreen;
 
-void loadLevel(void);
+void loadLevel(unsigned int startScreen);
 LevelScreen *getLevelScreen(unsigned int index);
 void renderLevelScreen(void);
 void renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll);

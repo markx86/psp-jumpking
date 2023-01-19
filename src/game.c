@@ -4,9 +4,8 @@
 
 #define SCREEN_SCROLL_SPEED 0.1f
 
-static int currentScreen;
 static short kingSX[2], kingSY[2];
-static unsigned int vBuffer, currentFrame;
+static unsigned int vBuffer, currentFrame, currentScreen;
 static int currentScroll, targetScroll;
 
 static void init(void) {
@@ -22,7 +21,7 @@ static void init(void) {
     // for every frame.
     setClearFlags(GU_DEPTH_BUFFER_BIT);
     // Load the level.
-    loadLevel();
+    loadLevel(0);
     // Initialize the player.
     kingCreate();
 
@@ -39,7 +38,26 @@ static void init(void) {
 
 static void update(float delta) {
     LevelScreen *screen = getLevelScreen(currentScreen);
-    kingUpdate(delta, screen);
+    unsigned int newScreen = currentScreen;
+    kingUpdate(delta, screen, &newScreen);
+
+    if (newScreen != currentScreen) {
+        if (newScreen != screen->teleportIndex) {
+            if (newScreen > currentScreen) {
+                targetScroll = SCREEN_MAX_SCROLL;
+                currentScroll = targetScroll;
+            } else {
+                targetScroll = 0;
+                currentScroll = targetScroll;
+            }
+            setBackgroundScroll(currentScroll);
+        }
+        currentScreen = newScreen;
+        currentFrame = 0;
+
+        getLevelScreen(currentScreen);
+        renderLevelScreen();
+    }
 }
 
 static void render(void) {

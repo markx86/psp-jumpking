@@ -26,5 +26,12 @@
             "name": "2",
             "size": [480, 360]
         }
+    },
+    {
+        "file": "screens/midground/3.png",
+        "texture": {
+            "name": "3",
+            "size": [480, 360]
+        }
     }
 ]

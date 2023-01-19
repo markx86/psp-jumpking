@@ -97,126 +97,11 @@ static char blockPropertiesMap[] = {
 static Player player;
 static char *playerSprites;
 
-void kingCreate(void) {
-    memset(&player, 0, sizeof(Player));
-    playerSprites = loadTextureVram("host0://assets/king/base/regular.qoi", NULL, NULL);
-    player.physics.y = 32.0f;
-    player.graphics.spriteIndex = SPRITE_STANDING;
-    player.graphics.sprite = PLAYER_GET_SPRITE(player.graphics.spriteIndex);
-}
-
-void kingUpdate(float delta, LevelScreen *screen) {
-    // Update status
-    {
-        if (player.physics.vy) {
-            // If the vertical velocity is not zero,
-            // the player is in the air.
-            player.status.inAir = 1;
-            if (player.physics.vy > 0.0f) {
-                // If the player is jumping up (meaning the vertical velocity is positive),
-                // reset the jump power.
-                // NOTE: This is there because the player can be falling,
-                //       and still be on a solid block (eg. sand block).
-                // TODO: This still needs to be implemented properly.
-                player.status.jumpPower = 0.0f;
-                // Also reset the fall time.
-                player.status.fallTime = 0.0f;
-            } else if (player.status.fallTime == 0.0f) {
-                // If the player is falling (meaning the vertical velocity is negative),
-                // count up the fall time.
-                player.status.fallTime += delta;
-            }
-        } else {
-            // Check if the player is standing on solid ground.
-            int mapX = player.graphics.sx / LEVEL_BLOCK_SIZE;
-            int mapY = player.graphics.sy / LEVEL_BLOCK_SIZE;
-            for (int x = -PLAYER_BLOCK_HALFW; x < PLAYER_BLOCK_HALFW; x++) {
-                LevelScreenBlock block = screen->blocks[mapY][mapX + x];
-                player.status.inAir |= LEVEL_BLOCK_ISSOLID(block) && !LEVEL_BLOCK_ISSLOPE(block);
-            }
-            player.status.inAir = !player.status.inAir;
-            
-            // Update physics
-            {
-                if (player.status.inAir) {
-                    player.physics.vx = player.input.direction * PLAYER_MAX_HSPEED;
-                }
-            }
-        }
-    }
-
-    if (!player.status.inAir) {
-        // If the player is on the ground...
-        
-        // Resolve input
-        {
-            // Check which direction the player wants to go.
-            short rightBias = (((Input.Buttons & PSP_CTRL_RIGHT) != 0) << 1) | ((Latch.uiBreak & PSP_CTRL_RIGHT) != 0);
-            short leftBias = (((Input.Buttons & PSP_CTRL_LEFT) != 0) << 1) | ((Latch.uiBreak & PSP_CTRL_LEFT) != 0);
-            player.input.direction = (leftBias > rightBias) ? -1 : (leftBias < rightBias) ? +1 : 0;
-            // Check if the player is trying to jump.
-            player.input.jumping = (Input.Buttons & PSP_CTRL_CROSS);
-        }
-
-        // Update status
-        {
-            // Update stunned timer
-            if (player.status.stunTime > 0) {
-                player.status.stunTime -= delta;
-            }
-
-            // Un-stun the player if input was recieved
-            // and the cooldown time has elapsed.
-            if (player.status.stunned && player.status.stunTime <= 0 && (player.input.jumping || player.input.direction)) {
-                player.status.stunned = 0;
-            }
-
-            // Check if the player is pressing the jump button
-            // and, if true, build up jump power.
-            if (!player.status.stunned && player.input.jumping) {
-                player.status.jumpPower += PLAYER_CHARGING_SPEED * delta;
-                player.status.maxJumpPower = player.status.jumpPower >= PLAYER_MAX_VSPEED;
-            }
-        }
-
-        // Update physics
-        {
-            if (!player.status.stunned) {
-                if (player.input.jumping && !player.status.maxJumpPower) {
-                    // Freeze the player if the jump button is pressed.
-                    player.physics.vx = 0.0f;
-                } else {
-                    // If the jump button is not pressed, move the player.
-                    player.physics.vx = player.input.direction * PLAYER_MAX_HSPEED;
-                    if (player.status.jumpPower) {
-                        // If the jump button was released...
-                        // - set the vertical speed to the jump power that was built up
-                        player.physics.vy = player.status.jumpPower;
-                        // - double the horizontal speed
-                        player.physics.vx *= 2.0f;
-                    }
-                }
-            }
-        }
-    } else {
-        // If the player is in the air...
-
-        // Update physics
-        {
-            // If the falling terminal velocity has not been reached,
-            // apply gravity.
-            if (player.physics.vy > -PLAYER_MAX_VSPEED) {
-                player.physics.vy -= PLAYER_GRAVITY;
-            }
-        }
-    }
-
-    // Compute new player position
-    float newX = player.physics.x + player.physics.vx * delta;
-    float newY = player.physics.y + player.physics.vy * delta;
-    // Convert new player position to screen coordinates
-    short newSX = ((short) newX) + (LEVEL_SCREEN_PXWIDTH / 2);
-    short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
+static void kingDoCollision(float *pNewX, float *pNewY, short *pNewSX, short *pNewSY, LevelScreen *screen) {
+    float newX = *pNewX;
+    float newY = *pNewY;
+    short newSX = *pNewSX;
+    short newSY = *pNewSY;
 
     // Compute player's map coordinates
     // NOTE: add one in case we are moving from left to right or up to down to account
@@ -350,14 +235,172 @@ void kingUpdate(float delta, LevelScreen *screen) {
         //       modify the player's position
     }
 
+    *pNewX = newX;
+    *pNewY = newY;
+    *pNewSX = newSX;
+    *pNewSY = newSY;
+}
+
+void kingCreate(void) {
+    memset(&player, 0, sizeof(Player));
+    playerSprites = loadTextureVram("host0://assets/king/base/regular.qoi", NULL, NULL);
+    player.physics.y = 32.0f;
+    player.graphics.spriteIndex = SPRITE_STANDING;
+    player.graphics.sprite = PLAYER_GET_SPRITE(player.graphics.spriteIndex);
+}
+
+void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
+    // Update status
+    {
+        if (player.physics.vy) {
+            // If the vertical velocity is not zero,
+            // the player is in the air.
+            player.status.inAir = 1;
+            if (player.physics.vy > 0.0f) {
+                // If the player is jumping up (meaning the vertical velocity is positive),
+                // reset the jump power.
+                // NOTE: This is there because the player can be falling,
+                //       and still be on a solid block (eg. sand block).
+                // TODO: This still needs to be implemented properly.
+                player.status.jumpPower = 0.0f;
+                // Also reset the fall time.
+                player.status.fallTime = 0.0f;
+            } else if (player.status.fallTime == 0.0f) {
+                // If the player is falling (meaning the vertical velocity is negative),
+                // count up the fall time.
+                player.status.fallTime += delta;
+            }
+        } else {
+            // Check if the player is standing on solid ground.
+            int mapX = player.graphics.sx / LEVEL_BLOCK_SIZE;
+            int mapY = player.graphics.sy / LEVEL_BLOCK_SIZE;
+            for (int x = -PLAYER_BLOCK_HALFW; x < PLAYER_BLOCK_HALFW; x++) {
+                LevelScreenBlock block = screen->blocks[mapY][mapX + x];
+                player.status.inAir |= LEVEL_BLOCK_ISSOLID(block) && !LEVEL_BLOCK_ISSLOPE(block);
+            }
+            player.status.inAir = !player.status.inAir;
+            
+            // Update physics
+            {
+                if (player.status.inAir) {
+                    player.physics.vx = player.input.direction * PLAYER_MAX_HSPEED;
+                }
+            }
+        }
+    }
+
+    if (!player.status.inAir) {
+        // If the player is on the ground...
+        
+        // Resolve input
+        {
+            // Check which direction the player wants to go.
+            short rightBias = (((Input.Buttons & PSP_CTRL_RIGHT) != 0) << 1) | ((Latch.uiBreak & PSP_CTRL_RIGHT) != 0);
+            short leftBias = (((Input.Buttons & PSP_CTRL_LEFT) != 0) << 1) | ((Latch.uiBreak & PSP_CTRL_LEFT) != 0);
+            player.input.direction = (leftBias > rightBias) ? -1 : (leftBias < rightBias) ? +1 : 0;
+            // Check if the player is trying to jump.
+            player.input.jumping = (Input.Buttons & PSP_CTRL_CROSS);
+        }
+
+        // Update status
+        {
+            // Update stunned timer
+            if (player.status.stunTime > 0) {
+                player.status.stunTime -= delta;
+            }
+
+            // Un-stun the player if input was recieved
+            // and the cooldown time has elapsed.
+            if (player.status.stunned && player.status.stunTime <= 0 && (player.input.jumping || player.input.direction)) {
+                player.status.stunned = 0;
+            }
+
+            // Check if the player is pressing the jump button
+            // and, if true, build up jump power.
+            if (!player.status.stunned && player.input.jumping) {
+                player.status.jumpPower += PLAYER_CHARGING_SPEED * delta;
+                player.status.maxJumpPower = player.status.jumpPower >= PLAYER_MAX_VSPEED;
+            }
+        }
+
+        // Update physics
+        {
+            if (!player.status.stunned) {
+                if (player.input.jumping && !player.status.maxJumpPower) {
+                    // Freeze the player if the jump button is pressed.
+                    player.physics.vx = 0.0f;
+                } else {
+                    // If the jump button is not pressed, move the player.
+                    player.physics.vx = player.input.direction * PLAYER_MAX_HSPEED;
+                    if (player.status.jumpPower) {
+                        // If the jump button was released...
+                        // - set the vertical speed to the jump power that was built up
+                        player.physics.vy = player.status.jumpPower;
+                        // - double the horizontal speed
+                        player.physics.vx *= 2.0f;
+                    }
+                }
+            }
+        }
+    } else {
+        // If the player is in the air...
+
+        // Update physics
+        {
+            // If the falling terminal velocity has not been reached,
+            // apply gravity.
+            if (player.physics.vy > -PLAYER_MAX_VSPEED) {
+                player.physics.vy -= PLAYER_GRAVITY;
+            }
+        }
+    }
+
+    // Compute new player position.
+    float newX = player.physics.x + player.physics.vx * delta;
+    float newY = player.physics.y + player.physics.vy * delta;
+    // Convert new player position to screen coordinates.
+    short newSX = ((short) newX) + (LEVEL_SCREEN_PXWIDTH / 2);
+    short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
+
+    if (newSY - PLAYER_SPRITE_HEIGHT < 0) {
+        // If the player has left the screen from the top side...
+        newSY += LEVEL_SCREEN_PXHEIGHT - PLAYER_SPRITE_HEIGHT;
+        newY -= LEVEL_SCREEN_PXHEIGHT - PLAYER_SPRITE_HEIGHT;
+        *outScreen += 1;
+    } else if (newSY > LEVEL_SCREEN_PXHEIGHT) {
+        // If the player has left the screen from the bottom side...
+        newSY -= LEVEL_SCREEN_PXHEIGHT;
+        newY += LEVEL_SCREEN_PXHEIGHT;
+        *outScreen -= 1;
+    } else if (newSX - PLAYER_SPRITE_HALFW < 0) {
+        // If the player has left the screen from the left side...
+        newSX += LEVEL_SCREEN_PXWIDTH;
+        newX += LEVEL_SCREEN_PXWIDTH;
+        *outScreen = screen->teleportIndex;
+    } else if (newSX + PLAYER_SPRITE_HALFW > LEVEL_SCREEN_PXWIDTH) {
+        // If the player has left the screen from the right side...
+        newSX -= LEVEL_SCREEN_PXWIDTH;
+        newX -= LEVEL_SCREEN_PXWIDTH;
+        *outScreen = screen->teleportIndex;
+    } else {
+        // If the player is within the leve screen bounds,
+        // handle collisions.
+        kingDoCollision(&newX, &newY, &newSX, &newSY, screen);
+    }
+
     // Update physics
     {
+        // Update player position.
         player.physics.x = newX;
         player.physics.y = newY;
     }
 
     // Update graphics
     {
+        // Update screeen coordinates.
+        player.graphics.sx = newSX;
+        player.graphics.sy = newSY;
+
         // If the player is not stunned...
         if (!player.status.stunned) {
             // Flip the sprite according to the player direction.
@@ -367,10 +410,6 @@ void kingUpdate(float delta, LevelScreen *screen) {
                 player.graphics.spriteUOffset = PLAYER_SPRITE_WIDTH;
             }
         }
-
-        // Update screeen coordinates.
-        player.graphics.sx = newSX;
-        player.graphics.sy = newSY;
 
         // Find the appropriate sprite index for the current frame.
         SpriteIndex newSpriteIndex;

@@ -74,6 +74,7 @@ class Screen:
                 c = Color(rgba[y][x])
                 if c.g == 0 and c.b == 255:
                     self._teleport = c.r
+                    self._blocks.append(BLOCK_EMPTY)
                 elif c == RGBA_EMPTY:
                     self._blocks.append(BLOCK_EMPTY)
                 elif c == RGB_SOLID:
@@ -98,6 +99,7 @@ class Screen:
                     self._blocks.append(BLOCK_SNOW)
                 elif c == RGB_WIND:
                     self._wind = 1
+                    self._blocks.append(BLOCK_EMPTY)
                 elif c == RGB_SAND:
                     self._blocks.append(BLOCK_SAND)
                 elif c == RGB_NOWIND:
@@ -157,14 +159,15 @@ if __name__ == "__main__":
     
     rgba = iio.imread(input_file, mode="RGBA")
     width = rgba.shape[1]
-    height = rgba.shape[2]
+    height = rgba.shape[0]
 
     screens = 0
     with open(output_file, "wb") as file:
         for x in range(0, width, TILE_WIDTH):
             for y in range(0, height, TILE_HEIGHT):
                 screen = Screen(rgba, x, y)
-                file.write(screen.to_bytearray())
+                bytes_arr = screen.to_bytearray()
+                file.write(bytes_arr)
                 screens += 1
                 if screens == TOTAL_SCREENS:
                     break
