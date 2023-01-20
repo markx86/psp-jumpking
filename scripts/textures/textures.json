@@ -33,5 +33,68 @@
             "name": "3",
             "size": [480, 360]
         }
+    },
+    {
+        "file": "screens/midground/4.png",
+        "texture": {
+            "name": "4",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/5.png",
+        "texture": {
+            "name": "5",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/6.png",
+        "texture": {
+            "name": "6",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/7.png",
+        "texture": {
+            "name": "7",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/7.png",
+        "texture": {
+            "name": "7",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/8.png",
+        "texture": {
+            "name": "8",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/9.png",
+        "texture": {
+            "name": "9",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/10.png",
+        "texture": {
+            "name": "10",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/11.png",
+        "texture": {
+            "name": "11",
+            "size": [480, 360]
+        }
     }
 ]

@@ -16,7 +16,7 @@
 // Status constants
 #define PLAYER_CHARGING_SPEED (PLAYER_MAX_VSPEED * 2.0f)
 #define PLAYER_STUN_TIME 1.0f
-#define PLAYER_MAX_FALL_TIME 2.5f
+#define PLAYER_MAX_FALL_TIME 1.0f
 #define PLAYER_GET_SPRITE(idx) (playerSprites + PLAYER_SPRITE_WIDTH * PLAYER_SPRITE_HEIGHT * 4 * (idx))
 
 typedef enum {
@@ -97,11 +97,10 @@ static char blockPropertiesMap[] = {
 static Player player;
 static char *playerSprites;
 
-static void kingDoCollision(float *pNewX, float *pNewY, short *pNewSX, short *pNewSY, LevelScreen *screen) {
-    float newX = *pNewX;
-    float newY = *pNewY;
-    short newSX = *pNewSX;
-    short newSY = *pNewSY;
+static void kingDoCollision(float newX, float newY, LevelScreen *screen) {
+    // Convert new player position to screen coordinates.
+    short newSX = ((short) newX) + (LEVEL_SCREEN_PXWIDTH / 2);
+    short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
 
     // Compute player's map coordinates
     // NOTE: add one in case we are moving from left to right or up to down to account
@@ -236,17 +235,28 @@ static void kingDoCollision(float *pNewX, float *pNewY, short *pNewSX, short *pN
             player.physics.vx = !wasVerticalCollision * -player.physics.vx * 0.5f;
 
             // Reset the fall time if something was hit.
-            player.status.fallTime = 0.0f;
+            if (isBlockSlope) {
+                player.status.fallTime = 0.0f;
+            }
         }
 
         // TODO: take into account special modifiers that don't necessarily
         //       modify the player's position
     }
 
-    *pNewX = newX;
-    *pNewY = newY;
-    *pNewSX = newSX;
-    *pNewSY = newSY;
+    // Update physics
+    {
+        // Update player position.
+        player.physics.x = newX;
+        player.physics.y = newY;
+    }
+
+    // Update graphics
+    {
+        // Update screeen coordinates.
+        player.graphics.sx = newSX;
+        player.graphics.sy = newSY;
+    }
 }
 
 void kingCreate(void) {
@@ -273,7 +283,7 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
                 player.status.jumpPower = 0.0f;
                 // Also reset the fall time.
                 player.status.fallTime = 0.0f;
-            } else if (player.status.fallTime == 0.0f) {
+            } else if (player.status.fallTime < PLAYER_MAX_FALL_TIME) {
                 // If the player is falling (meaning the vertical velocity is negative),
                 // count up the fall time.
                 player.status.fallTime += delta;
@@ -366,49 +376,35 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
     // Compute new player position.
     float newX = player.physics.x + player.physics.vx * delta;
     float newY = player.physics.y + player.physics.vy * delta;
-    // Convert new player position to screen coordinates.
-    short newSX = ((short) newX) + (LEVEL_SCREEN_PXWIDTH / 2);
-    short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
     
     // If the player is within the leve screen bounds,
     // handle collisions.
-    kingDoCollision(&newX, &newY, &newSX, &newSY, screen);
+    kingDoCollision(newX, newY, screen);
 
-    if (newSY - PLAYER_SPRITE_HALFH < 0) {
+    if (player.graphics.sy - PLAYER_SPRITE_HALFH < 0) {
         // If the player has left the screen from the top side...
-        newSY += LEVEL_SCREEN_PXHEIGHT;
-        newY -= LEVEL_SCREEN_PXHEIGHT;
+        player.graphics.sy += LEVEL_SCREEN_PXHEIGHT;
+        player.physics.y -= LEVEL_SCREEN_PXHEIGHT;
         *outScreen += 1;
-    } else if (newSY - PLAYER_SPRITE_HALFH >= LEVEL_SCREEN_PXHEIGHT) {
+    } else if (player.graphics.sy - PLAYER_SPRITE_HALFH >= LEVEL_SCREEN_PXHEIGHT) {
         // If the player has left the screen from the bottom side...
-        newSY -= LEVEL_SCREEN_PXHEIGHT;
-        newY += LEVEL_SCREEN_PXHEIGHT;
+        player.graphics.sy -= LEVEL_SCREEN_PXHEIGHT;
+        player.physics.y += LEVEL_SCREEN_PXHEIGHT;
         *outScreen -= 1;
-    } else if (newSX - PLAYER_SPRITE_HALFW < 0) {
+    } else if (player.graphics.sx - PLAYER_SPRITE_HALFW < 0) {
         // If the player has left the screen from the left side...
-        newSX += LEVEL_SCREEN_PXWIDTH;
-        newX += LEVEL_SCREEN_PXWIDTH;
+        player.graphics.sx += LEVEL_SCREEN_PXWIDTH;
+        player.physics.x += LEVEL_SCREEN_PXWIDTH;
         *outScreen = screen->teleportIndex;
-    } else if (newSX + PLAYER_SPRITE_HALFW > LEVEL_SCREEN_PXWIDTH) {
+    } else if (player.graphics.sx + PLAYER_SPRITE_HALFW > LEVEL_SCREEN_PXWIDTH) {
         // If the player has left the screen from the right side...
-        newSX -= LEVEL_SCREEN_PXWIDTH;
-        newX -= LEVEL_SCREEN_PXWIDTH;
+        player.graphics.sx -= LEVEL_SCREEN_PXWIDTH;
+        player.physics.x -= LEVEL_SCREEN_PXWIDTH;
         *outScreen = screen->teleportIndex;
-    }
-
-    // Update physics
-    {
-        // Update player position.
-        player.physics.x = newX;
-        player.physics.y = newY;
     }
 
     // Update graphics
     {
-        // Update screeen coordinates.
-        player.graphics.sx = newSX;
-        player.graphics.sy = newSY;
-
         // If the player is not stunned...
         if (!player.status.stunned) {
             // Flip the sprite according to the player direction.
