@@ -166,9 +166,9 @@ void cleanBackgroundAt(void *data, short x, short y, short w, short h, unsigned 
 
 void setBackgroundScroll(int offset) {
     if (offset > SCREEN_MAX_SCROLL) {
-        panic("Scroll offset too big. Got %d but the maximum is %d", offset, SCREEN_MAX_SCROLL);
+        panic("Scroll scroll too big. Got %d but the maximum is %d", offset, SCREEN_MAX_SCROLL);
     } else if (offset < 0) {
-        panic("Scroll offset is negative. Got %d", offset);
+        panic("Scroll scroll is negative. Got %d", offset);
     }
     unsigned int bufferOffset = getVramMemorySize(BUFFER_WIDTH, (unsigned int) offset, GU_PSM_8888);
     sceGuDrawBuffer(GU_PSM_8888, ((char *) drawBuffer) + bufferOffset, BUFFER_WIDTH);
@@ -177,21 +177,25 @@ void setBackgroundScroll(int offset) {
 
 int main(void) {
     init();
-    unsigned long start, end;
-    end = sceKernelLibcClock();
+    unsigned long thisFrameTime, lastFrameTime;
+    lastFrameTime = sceKernelLibcClock();
+    long deltaU = 0;
     while (running) {
-        start = sceKernelLibcClock();
+        thisFrameTime = sceKernelLibcClock();
         // Poll input.
         sceCtrlReadBufferPositive(&__ctrlData, 1);
         sceCtrlReadLatch(&__latchData);
         // Update the current state.
-        float deltaT = ((float)(start - end)) / 1000000.0f;
-        __currentState->update(deltaT);
+        deltaU += thisFrameTime - lastFrameTime;
+        if (deltaU > STATE_UPDATE_DELTA_MS) {
+            __currentState->update();
+            deltaU -= STATE_UPDATE_DELTA_MS;
+        }
         // Render the current state.
         startFrame();
         __currentState->render();
         endFrame();
-        end = start;
+        lastFrameTime = thisFrameTime;
     }
     cleanup();
     return 0;

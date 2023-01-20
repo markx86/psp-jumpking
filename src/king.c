@@ -2,23 +2,41 @@
 #include "state.h"
 #include <string.h>
 
-#define PLAYER_BLOCK_WIDTH (PLAYER_SPRITE_WIDTH / LEVEL_BLOCK_SIZE)
-#define PLAYER_BLOCK_HEIGHT (PLAYER_SPRITE_HEIGHT / LEVEL_BLOCK_SIZE)
+//#define PLAYER_HITBOX_WIDTH 18
+//#define PLAYER_HITBOX_HEIGHT 26
 
-#define PLAYER_BLOCK_HALFW (PLAYER_BLOCK_WIDTH / 2)
-#define PLAYER_BLOCK_HALFH (PLAYER_BLOCK_HEIGHT / 2)
+#define PLAYER_HITBOX_WIDTH 24
+#define PLAYER_HITBOX_HEIGHT 32
+
+#define PLAYER_HITBOX_HALFW (PLAYER_HITBOX_WIDTH / 2)
+#define PLAYER_HITBOX_HALFH (PLAYER_HITBOX_HEIGHT / 2)
+
+#define PLAYER_HITBOX_BLOCK_WIDTH (PLAYER_HITBOX_WIDTH / LEVEL_BLOCK_SIZE)
+#define PLAYER_HITBOX_BLOCK_HEIGHT (PLAYER_HITBOX_HEIGHT / LEVEL_BLOCK_SIZE)
+
+#define PLAYER_HITBOX_BLOCK_HALFW (PLAYER_HITBOX_BLOCK_WIDTH / 2)
+#define PLAYER_HITBOX_BLOCK_HALFH (PLAYER_HITBOX_BLOCK_HEIGHT / 2)
 
 // Physics constants
-#define PLAYER_MAX_VSPEED 450.0f
-#define PLAYER_MAX_HSPEED 100.0f
-#define PLAYER_GRAVITY 11.5f
+#define PLAYER_JUMP_HEIGHT 153.0f
+#define PLAYER_JUMP_VSPEED 9.0f
+//#define PLAYER_JUMP_VSPEED 525.0f
+#define PLAYER_JUMP_HSPEED 3.5f
+//#define PLAYER_JUMP_HSPEED 210.0f
+#define PLAYER_WALK_SPEED 1.5f
+//#define PLAYER_WALK_SPEED 90.0f
+#define PLAYER_WALL_BOUNCE 0.45f
+#define PLAYER_GRAVITY 0.275f
+#define PLAYER_MAX_FALL_SPEED 10.0f
+//#define PLAYER_MAX_FALL_SPEED 1200.0f
 
 // Status constants
-#define PLAYER_CHARGING_SPEED (PLAYER_MAX_VSPEED * 2.0f)
-#define PLAYER_STUN_TIME 1.0f
+#define PLAYER_CHARGE_TIME 0.6f
+#define PLAYER_STUN_TIME 0.5f
 #define PLAYER_MAX_FALL_TIME 1.0f
 #define PLAYER_GET_SPRITE(idx) (playerSprites + PLAYER_SPRITE_WIDTH * PLAYER_SPRITE_HEIGHT * 4 * (idx))
 
+// Player sprites
 typedef enum {
     SPRITE_STANDING,
     SPRITE_WALKING0,
@@ -31,6 +49,7 @@ typedef enum {
     SPRITE_HITWALLMIDAIR,
 } SpriteIndex;
 
+// Collision modifiers
 typedef enum {
     COLLMOD_NONE = 0,
     COLLMOD_NOWIND = 1,
@@ -107,7 +126,7 @@ static void kingDoCollision(float newX, float newY, LevelScreen *screen) {
     //       for the size of the block. This has to be done because the block coordinates
     //       in the collision map are relative to the top-left corner of the block.
     short mapX = newSX / LEVEL_BLOCK_SIZE + (player.physics.vx > 0.0f);
-    short mapY = (newSY - PLAYER_SPRITE_HALFH) / LEVEL_BLOCK_SIZE + (player.physics.vy < 0.0f);
+    short mapY = (newSY - PLAYER_HITBOX_HALFH) / LEVEL_BLOCK_SIZE + (player.physics.vy < 0.0f);
     // Get collision info
     int minDist2 = -1;          // the distance of the closest block that has collided with the player
     short collX, collY;         // the screen coordinates of the collision (relative to the top-left corner of the block)
@@ -116,8 +135,8 @@ static void kingDoCollision(float newX, float newY, LevelScreen *screen) {
     LevelScreenBlock collBlock; // the block the player has collided with
     char collModifiers = 0;     // the collision modifiers
     // Loop through all the blocks the player's sprite is occupying
-    for (short y = -PLAYER_BLOCK_HALFH; y < PLAYER_BLOCK_HALFH; y++) {
-        for (short x = -PLAYER_BLOCK_HALFW; x < PLAYER_BLOCK_HALFW; x++) {
+    for (short y = -PLAYER_HITBOX_BLOCK_HALFH; y < PLAYER_HITBOX_BLOCK_HALFH; y++) {
+        for (short x = -PLAYER_HITBOX_BLOCK_HALFW; x < PLAYER_HITBOX_BLOCK_HALFW; x++) {
             int lx = mapX + x;
             int ly = mapY + y;
             // Check if the block is in the current screen...
@@ -155,7 +174,7 @@ static void kingDoCollision(float newX, float newY, LevelScreen *screen) {
             int adjX = -1, adjY = -1;
             int deltaX, deltaY;
             int refX = player.graphics.sx;
-            int refY = player.graphics.sy - PLAYER_SPRITE_HALFH;
+            int refY = player.graphics.sy - PLAYER_HITBOX_HALFH;
             // Find the closest free block to the collision block.
             for (short y = -2; y <= 2; y++) {
                 for (short x = -2; x <= 2; x++) {
@@ -204,7 +223,7 @@ static void kingDoCollision(float newX, float newY, LevelScreen *screen) {
 
             // Compute new corrected player screen coordinates and position
             if (wasVerticalCollision) {
-                newSY = adjY - collOffY + PLAYER_SPRITE_HALFH;
+                newSY = adjY - collOffY + PLAYER_HITBOX_HALFH;
                 newY = (float) (LEVEL_SCREEN_PXHEIGHT - newSY);
             } else {
                 newSX = adjX - collOffX;
@@ -229,15 +248,15 @@ static void kingDoCollision(float newX, float newY, LevelScreen *screen) {
             // TODO: handle slopes
             player.status.hitWallMidair = (player.status.inAir || player.physics.vy > 0.0f) && !wasVerticalCollision;
 
-            // TODO: - apply speed dampening effects
-            //       - handle slopes and sliding
-            player.physics.vy = !wasVerticalCollision * player.physics.vy;
-            player.physics.vx = !wasVerticalCollision * -player.physics.vx * 0.5f;
-
             // Reset the fall time if something was hit.
-            if (isBlockSlope) {
+            if (isBlockSlope || wasVerticalCollision && player.physics.vy > 0.0f) {
                 player.status.fallTime = 0.0f;
             }
+
+            // TODO: - apply speed dampening effects
+            //       - handle slopes and sliding
+            player.physics.vx = (!wasVerticalCollision || player.physics.vy > 0.0f) * -player.physics.vx * PLAYER_WALL_BOUNCE;
+            player.physics.vy = !wasVerticalCollision * player.physics.vy;
         }
 
         // TODO: take into account special modifiers that don't necessarily
@@ -267,7 +286,7 @@ void kingCreate(void) {
     player.graphics.sprite = PLAYER_GET_SPRITE(player.graphics.spriteIndex);
 }
 
-void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
+void kingUpdate(LevelScreen *screen, unsigned int *outScreen) {
     // Update status
     {
         if (player.physics.vy) {
@@ -286,13 +305,13 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
             } else if (player.status.fallTime < PLAYER_MAX_FALL_TIME) {
                 // If the player is falling (meaning the vertical velocity is negative),
                 // count up the fall time.
-                player.status.fallTime += delta;
+                player.status.fallTime += STATE_UPDATE_DELTA_S;
             }
         } else {
             // Check if the player is standing on solid ground.
             int mapX = player.graphics.sx / LEVEL_BLOCK_SIZE;
             int mapY = player.graphics.sy / LEVEL_BLOCK_SIZE;
-            for (int x = -PLAYER_BLOCK_HALFW; x < PLAYER_BLOCK_HALFW; x++) {
+            for (int x = -PLAYER_HITBOX_BLOCK_HALFW; x < PLAYER_HITBOX_BLOCK_HALFW; x++) {
                 LevelScreenBlock block = screen->blocks[mapY][mapX + x];
                 player.status.inAir |= LEVEL_BLOCK_ISSOLID(block) && !LEVEL_BLOCK_ISSLOPE(block);
             }
@@ -301,7 +320,7 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
             // Update physics
             {
                 if (player.status.inAir) {
-                    player.physics.vx = player.input.direction * PLAYER_MAX_HSPEED;
+                    player.physics.vx = player.input.direction * PLAYER_WALK_SPEED;
                 }
             }
         }
@@ -324,7 +343,7 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
         {
             // Update stunned timer
             if (player.status.stunTime > 0) {
-                player.status.stunTime -= delta;
+                player.status.stunTime -= STATE_UPDATE_DELTA_S;
             }
 
             // Un-stun the player if input was recieved
@@ -336,8 +355,8 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
             // Check if the player is pressing the jump button
             // and, if true, build up jump power.
             if (!player.status.stunned && player.input.jumping) {
-                player.status.jumpPower += PLAYER_CHARGING_SPEED * delta;
-                player.status.maxJumpPower = player.status.jumpPower >= PLAYER_MAX_VSPEED;
+                player.status.jumpPower += (PLAYER_JUMP_VSPEED / PLAYER_CHARGE_TIME) * STATE_UPDATE_DELTA_S;
+                player.status.maxJumpPower = player.status.jumpPower >= PLAYER_JUMP_VSPEED;
             }
         }
 
@@ -348,14 +367,14 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
                     // Freeze the player if the jump button is pressed.
                     player.physics.vx = 0.0f;
                 } else {
-                    // If the jump button is not pressed, move the player.
-                    player.physics.vx = player.input.direction * PLAYER_MAX_HSPEED;
                     if (player.status.jumpPower) {
                         // If the jump button was released...
                         // - set the vertical speed to the jump power that was built up
                         player.physics.vy = player.status.jumpPower;
-                        // - double the horizontal speed
-                        player.physics.vx *= 2.0f;
+                        player.physics.vx = player.input.direction * PLAYER_JUMP_HSPEED;
+                    } else {
+                        // Otherwise, walk at normal speed.
+                        player.physics.vx = player.input.direction * PLAYER_WALK_SPEED;
                     }
                 }
             }
@@ -367,36 +386,36 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
         {
             // If the falling terminal velocity has not been reached,
             // apply gravity.
-            if (player.physics.vy > -PLAYER_MAX_VSPEED) {
+            if (player.physics.vy > -PLAYER_MAX_FALL_SPEED) {
                 player.physics.vy -= PLAYER_GRAVITY;
             }
         }
     }
 
     // Compute new player position.
-    float newX = player.physics.x + player.physics.vx * delta;
-    float newY = player.physics.y + player.physics.vy * delta;
+    float newX = player.physics.x + player.physics.vx;
+    float newY = player.physics.y + player.physics.vy;
     
     // If the player is within the leve screen bounds,
     // handle collisions.
     kingDoCollision(newX, newY, screen);
 
-    if (player.graphics.sy - PLAYER_SPRITE_HALFH < 0) {
+    if (player.graphics.sy - PLAYER_HITBOX_HALFH < 0) {
         // If the player has left the screen from the top side...
         player.graphics.sy += LEVEL_SCREEN_PXHEIGHT;
         player.physics.y -= LEVEL_SCREEN_PXHEIGHT;
         *outScreen += 1;
-    } else if (player.graphics.sy - PLAYER_SPRITE_HALFH >= LEVEL_SCREEN_PXHEIGHT) {
+    } else if (player.graphics.sy - PLAYER_HITBOX_HALFH >= LEVEL_SCREEN_PXHEIGHT) {
         // If the player has left the screen from the bottom side...
         player.graphics.sy -= LEVEL_SCREEN_PXHEIGHT;
         player.physics.y += LEVEL_SCREEN_PXHEIGHT;
         *outScreen -= 1;
-    } else if (player.graphics.sx - PLAYER_SPRITE_HALFW < 0) {
+    } else if (player.graphics.sx - PLAYER_HITBOX_HALFW < 0) {
         // If the player has left the screen from the left side...
         player.graphics.sx += LEVEL_SCREEN_PXWIDTH;
         player.physics.x += LEVEL_SCREEN_PXWIDTH;
         *outScreen = screen->teleportIndex;
-    } else if (player.graphics.sx + PLAYER_SPRITE_HALFW > LEVEL_SCREEN_PXWIDTH) {
+    } else if (player.graphics.sx + PLAYER_HITBOX_HALFW > LEVEL_SCREEN_PXWIDTH) {
         // If the player has left the screen from the right side...
         player.graphics.sx -= LEVEL_SCREEN_PXWIDTH;
         player.physics.x -= LEVEL_SCREEN_PXWIDTH;

@@ -36,10 +36,10 @@ static void init(void) {
     renderLevelScreen();
 }
 
-static void update(float delta) {
+static void update(void) {
     LevelScreen *screen = getLevelScreen(currentScreen);
     unsigned int newScreen = currentScreen;
-    kingUpdate(delta, screen, &newScreen);
+    kingUpdate(screen, &newScreen);
 
     if (newScreen != currentScreen) {
         if (newScreen != screen->teleportIndex) {
@@ -94,7 +94,8 @@ static void render(void) {
         }
 
         // Paint over where the king was in the previous frame.
-        renderLevelScreenSection(kingSX[vBuffer], kingSY[vBuffer], PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT, currentScroll);
+        // Add a 4 pixel padding to account for the error introduced by the fixed update loop.
+        renderLevelScreenSection(kingSX[vBuffer] - 2, kingSY[vBuffer] - 2, PLAYER_SPRITE_WIDTH + 4, PLAYER_SPRITE_HEIGHT + 4, currentScroll);
     }
     
     // Render the player.

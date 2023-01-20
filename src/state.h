@@ -8,7 +8,7 @@
 
 typedef struct {
     void (*init)(void);
-    void (*update)(float delta);
+    void (*update)(void);
     void (*render)(void);
     void (*cleanup)(void);
 } GameState;
@@ -26,6 +26,10 @@ extern void setClearFlags(int flags);
 extern void setBackgroundData(void *data, unsigned int width, unsigned int height);
 extern void cleanBackgroundAt(void *data, short x, short y, short w, short h, unsigned int stride);
 extern void setBackgroundScroll(int offset);
+
+// Stuff needed for physics.
+#define STATE_UPDATE_DELTA_S (1.0f / 60.0f)
+#define STATE_UPDATE_DELTA_MS (1000000 / 60)
 
 // Stuff needed for rendering.
 #define STATE_SCREEN_WIDTH 480
