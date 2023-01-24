@@ -20,8 +20,11 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 SceCtrlData __ctrlData;
 SceCtrlLatch __latchData;
 
-static int running, clearFlags;
-static char displayList[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
+static char __displayList1[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
+static char __displayList2[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
+
+static char *displayList[2] = { __displayList1, __displayList2 };
+static int running, clearFlags, waitForFrame, vBuffer;
 static void *drawBuffer, *dispBuffer, *depthBuffer;
 static const GameState *__currentState;
 
@@ -47,7 +50,7 @@ static int setupCallbacks(void) {
 }
 
 static void startFrame(void) {
-    sceGuStart(GU_DIRECT, displayList);
+    sceGuStart(GU_DIRECT, displayList[vBuffer]);
     sceGuClear(clearFlags);
 }
 
@@ -55,23 +58,29 @@ static void endFrame(void) {
     // Start rendering bitch
     sceGuFinish();
     // Wait for render to finish.
-    sceGuSync(GU_SYNC_WHAT_DONE, GU_SYNC_FINISH);
+    if (waitForFrame) {
+        sceGuSync(GU_SYNC_WHAT_DONE, GU_SYNC_FINISH);
+    } else {
+        waitForFrame = 1;
+    }
     // Wait for the next V-blank interval.
     if (!sceDisplayIsVblank()) {
         sceDisplayWaitVblankStartCB();
     }
     // Swap the buffers.
     sceGuSwapBuffers();
+    // Flip the buffer selector.
+    vBuffer = !vBuffer;
 }
 
 static void initGu(void) {
     // Reserve VRAM for draw, display and depth buffers.
     drawBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
     dispBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
-    depthBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_4444)));
+    depthBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, 272, GU_PSM_4444)));
     // Initialize the graphics utility.
     sceGuInit();
-    sceGuStart(GU_DIRECT, displayList);
+    sceGuStart(GU_DIRECT, displayList[vBuffer]);
     // Set up the buffers.
     sceGuDrawBuffer(GU_PSM_8888, drawBuffer, BUFFER_WIDTH);
     sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, dispBuffer, BUFFER_WIDTH);
@@ -114,6 +123,13 @@ static void init(void) {
     clearFlags = GU_DEPTH_BUFFER_BIT | GU_COLOR_BUFFER_BIT;
     // Set running state to 1.
     running = 1;
+    // This flag is here to tell the CPU to wait for the frame
+    // to finish rendering before swapping the buffers.
+    // Doing this avoids tearing, but introduces lag if the
+    // frame takes too long to render.
+    waitForFrame = 1;
+    // Set the current GE buffer selector.
+    vBuffer = 0;
     // Initialize resource loader.
     initLoader();
     // Set up the input mode.
@@ -164,7 +180,7 @@ void cleanBackgroundAt(void *data, short x, short y, short w, short h, unsigned 
     }
 }
 
-void setBackgroundScroll(int offset) {
+void setBackgroundScroll(short offset) {
     if (offset > SCREEN_MAX_SCROLL) {
         panic("Scroll scroll too big. Got %d but the maximum is %d", offset, SCREEN_MAX_SCROLL);
     } else if (offset < 0) {
@@ -173,24 +189,25 @@ void setBackgroundScroll(int offset) {
     unsigned int bufferOffset = getVramMemorySize(BUFFER_WIDTH, (unsigned int) offset, GU_PSM_8888);
     sceGuDrawBuffer(GU_PSM_8888, ((char *) drawBuffer) + bufferOffset, BUFFER_WIDTH);
     sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, ((char *) dispBuffer) + bufferOffset, BUFFER_WIDTH);
+    //sceGuDepthBuffer(((char *) depthBuffer) + getVramMemorySize(BUFFER_WIDTH, (unsigned int) offset, GU_PSM_4444), BUFFER_WIDTH);
+}
+
+void skipWaitForThisFrame(void) {
+    waitForFrame = 0;
 }
 
 int main(void) {
     init();
     unsigned long thisFrameTime, lastFrameTime;
     lastFrameTime = sceKernelLibcClock();
-    long deltaU = 0;
     while (running) {
         thisFrameTime = sceKernelLibcClock();
         // Poll input.
         sceCtrlReadBufferPositive(&__ctrlData, 1);
         sceCtrlReadLatch(&__latchData);
         // Update the current state.
-        deltaU += thisFrameTime - lastFrameTime;
-        if (deltaU > STATE_UPDATE_DELTA_MS) {
-            __currentState->update();
-            deltaU -= STATE_UPDATE_DELTA_MS;
-        }
+        float delta = (float) (thisFrameTime - lastFrameTime) / 1000000.0f;
+        __currentState->update(delta);
         // Render the current state.
         startFrame();
         __currentState->render();

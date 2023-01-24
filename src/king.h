@@ -10,7 +10,7 @@
 #define PLAYER_SPRITE_HALFH (PLAYER_SPRITE_HEIGHT / 2)
 
 void kingCreate(void);
-void kingUpdate(LevelScreen *screen, unsigned int *outScreen);
+void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen);
 void kingRender(short *outSX, short *outSY, unsigned int currentScroll);
 void kingDestroy(void);
 

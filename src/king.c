@@ -18,6 +18,7 @@
 #define PLAYER_HITBOX_BLOCK_HALFH (PLAYER_HITBOX_BLOCK_HEIGHT / 2)
 
 // Physics constants
+#define PLAYER_UPDATE_DELTA (1.0f / 60.0f)
 #define PLAYER_JUMP_HEIGHT 153.0f
 #define PLAYER_JUMP_VSPEED 9.0f
 //#define PLAYER_JUMP_VSPEED 525.0f
@@ -115,6 +116,7 @@ static char blockPropertiesMap[] = {
 
 static Player player;
 static char *playerSprites;
+static float playerDeltaU;
 
 static void kingDoCollision(float newX, float newY, LevelScreen *screen) {
     // Convert new player position to screen coordinates.
@@ -281,12 +283,26 @@ static void kingDoCollision(float newX, float newY, LevelScreen *screen) {
 void kingCreate(void) {
     memset(&player, 0, sizeof(Player));
     playerSprites = loadTextureVram("host0://assets/king/base/regular.qoi", NULL, NULL);
+    // Set the player starting position.
+    player.physics.x = 0.0f;
     player.physics.y = 32.0f;
+    // Update the player screen coordinates.
+    player.graphics.sx = ((short) player.physics.x) + (LEVEL_SCREEN_PXWIDTH / 2);
+    player.graphics.sy = LEVEL_SCREEN_PXHEIGHT - ((short) player.physics.y);
+    // Set the initial sprite.
     player.graphics.spriteIndex = SPRITE_STANDING;
     player.graphics.sprite = PLAYER_GET_SPRITE(player.graphics.spriteIndex);
+    // Initialize the update delta time.
+    playerDeltaU = 0.0f;
 }
 
-void kingUpdate(LevelScreen *screen, unsigned int *outScreen) {
+void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
+    playerDeltaU += delta;
+    if (playerDeltaU < PLAYER_UPDATE_DELTA) {
+        return;
+    }
+    playerDeltaU -= PLAYER_UPDATE_DELTA;
+
     // Update status
     {
         if (player.physics.vy) {
@@ -305,7 +321,7 @@ void kingUpdate(LevelScreen *screen, unsigned int *outScreen) {
             } else if (player.status.fallTime < PLAYER_MAX_FALL_TIME) {
                 // If the player is falling (meaning the vertical velocity is negative),
                 // count up the fall time.
-                player.status.fallTime += STATE_UPDATE_DELTA_S;
+                player.status.fallTime += PLAYER_UPDATE_DELTA;
             }
         } else {
             // Check if the player is standing on solid ground.
@@ -317,10 +333,15 @@ void kingUpdate(LevelScreen *screen, unsigned int *outScreen) {
             }
             player.status.inAir = !player.status.inAir;
             
-            // Update physics
-            {
-                if (player.status.inAir) {
+            if (player.status.inAir) {
+                // Update physics
+                {
                     player.physics.vx = player.input.direction * PLAYER_WALK_SPEED;
+                }
+                
+                // Update status
+                {
+                    player.status.fallTime = 0.0f;
                 }
             }
         }
@@ -343,7 +364,7 @@ void kingUpdate(LevelScreen *screen, unsigned int *outScreen) {
         {
             // Update stunned timer
             if (player.status.stunTime > 0) {
-                player.status.stunTime -= STATE_UPDATE_DELTA_S;
+                player.status.stunTime -= PLAYER_UPDATE_DELTA;
             }
 
             // Un-stun the player if input was recieved
@@ -355,7 +376,7 @@ void kingUpdate(LevelScreen *screen, unsigned int *outScreen) {
             // Check if the player is pressing the jump button
             // and, if true, build up jump power.
             if (!player.status.stunned && player.input.jumping) {
-                player.status.jumpPower += (PLAYER_JUMP_VSPEED / PLAYER_CHARGE_TIME) * STATE_UPDATE_DELTA_S;
+                player.status.jumpPower += (PLAYER_JUMP_VSPEED / PLAYER_CHARGE_TIME) * PLAYER_UPDATE_DELTA;
                 player.status.maxJumpPower = player.status.jumpPower >= PLAYER_JUMP_VSPEED;
             }
         }

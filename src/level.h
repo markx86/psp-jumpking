@@ -40,7 +40,9 @@ typedef struct {
 
 void loadLevel(unsigned int startScreen);
 LevelScreen *getLevelScreen(unsigned int index);
-void renderLevelScreen(void);
+void renderLevelScreen(short scroll);
+void renderLevelScreenLinesTop(short scroll, short lines);
+void renderLevelScreenLinesBottom(short scroll, short lines);
 void renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll);
 void forceCleanLevelArtifactAt(short x, short y, short width, short height);
 void unloadLevel(void);
