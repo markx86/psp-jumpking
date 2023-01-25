@@ -138,7 +138,6 @@ LevelScreen *getLevelScreen(unsigned int index) {
 }
 
 void renderLevelScreen(short scroll) {
-    //setBackgroundData(screenHandleCurrent.texture, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_PXHEIGHT);
     Vertex *vertices = sceGuGetMemory(2 * sizeof(Vertex));
     
     vertices[0].x = 0;
@@ -156,7 +155,7 @@ void renderLevelScreen(short scroll) {
     sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
     sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
-    sceGuTexFilter(GU_LINEAR, GU_LINEAR);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
 }
 
@@ -178,10 +177,11 @@ void renderLevelScreenLinesTop(short scroll, short lines) {
     sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
     sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
-    sceGuTexFilter(GU_LINEAR, GU_LINEAR);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
-
-    skipWaitForThisFrame();
+    
+    // Update the display buffer to avoid graphical glitches.
+    updateDisplayBufferRegion(0, scroll, PSP_SCREEN_WIDTH, lines);
 }
 
 void renderLevelScreenLinesBottom(short scroll, short lines) {
@@ -204,10 +204,11 @@ void renderLevelScreenLinesBottom(short scroll, short lines) {
     sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
     sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
-    sceGuTexFilter(GU_LINEAR, GU_LINEAR);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
 
-    skipWaitForThisFrame();
+    // Update the display buffer to avoid graphical glitches.
+    updateDisplayBufferRegion(0, offset + scroll, PSP_SCREEN_WIDTH, lines);
 }
 
 void forceCleanLevelArtifactAt(short x, short y, short width, short height) {
@@ -225,7 +226,7 @@ void forceCleanLevelArtifactAt(short x, short y, short width, short height) {
         y = LEVEL_SCREEN_PXHEIGHT - height;
     }
     
-    cleanBackgroundAt(screenHandleCurrent.texture, x, y, width, height, LEVEL_SCREEN_IMAGEW);
+    updateDisplayBufferRegion(x, y, width, height);
 }
 
 void renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll) {
@@ -260,7 +261,7 @@ void renderLevelScreenSection(short x, short y, short width, short height, unsig
     sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
     sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGBA);
-    sceGuTexFilter(GU_LINEAR, GU_LINEAR);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
 }
 

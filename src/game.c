@@ -1,22 +1,21 @@
 #include "state.h"
 #include "level.h"
 #include "king.h"
+#include <math.h>
 
 #define SCREEN_SCROLL_SPEED 0.1f
 
 static short kingSX[2], kingSY[2];
-static unsigned int vBuffer, frameCounter, currentScreen;
+static short prevKingSX[2], prevKingSY[2];
+static unsigned int vBuffer, frameCounter, currentScreenIndex, clearArtifactsOnNextFrame;
 static short currentScroll, targetScroll, minScroll, maxScroll;
-static short drawLinesBottom, drawLinesTop;
 
 static void init(void) {
-    currentScreen = 0;
+    currentScreenIndex = 0;
     kingSX[0] = 0; kingSX[1] = 0;
     kingSY[0] = 0; kingSY[1] = 0;
     vBuffer = 0;
     frameCounter = 0;
-    drawLinesBottom = 0;
-    drawLinesTop = 0;
 
     // Tell the engine to only clear the depth buffer.
     // We don't want to clear the color buffer, since
@@ -34,26 +33,32 @@ static void init(void) {
     minScroll = currentScroll;
     maxScroll = currentScroll;
     setBackgroundScroll(currentScroll);
-
-    // Copy the entire level screen into the background.
-    // This has to be done because the PSP cannot
-    // re-render the entire frame @ 60 fps.
-    //renderLevelScreen();
 }
 
-#include <math.h>
-
 static void update(float delta) {
-    LevelScreen *screen = getLevelScreen(currentScreen);
-    unsigned int newScreen = currentScreen;
-    kingUpdate(delta, screen, &newScreen);
+    // Update the player.
+    LevelScreen *screen = getLevelScreen(currentScreenIndex);
+    unsigned int newScreenIndex = currentScreenIndex;
+    kingUpdate(delta, screen, &newScreenIndex);
 
-    if (newScreen != currentScreen) {
-        if (newScreen != screen->teleportIndex) {
-            if (newScreen > currentScreen) {
+    // Check if we need to change the screen.
+    if (newScreenIndex != currentScreenIndex) {
+        // Check if we're moving vertically in the world.
+        // The teleportIndex stores the screen the game
+        // has to switch to if the player goes walks 
+        // out of the level screen bounds from
+        // the left or the right side.
+        if (newScreenIndex != screen->teleportIndex) {
+            if (newScreenIndex > currentScreenIndex) {
+                // If the player has moved up a screen,
+                // we want to render the new screen from
+                // the bottom.
                 targetScroll = SCREEN_MAX_SCROLL;
                 currentScroll = targetScroll;
             } else {
+                // If the player has moved down a screen,
+                // we want to render the new screen from
+                // the top.
                 targetScroll = 0;
                 currentScroll = targetScroll;
             }
@@ -61,23 +66,27 @@ static void update(float delta) {
             maxScroll = currentScroll;
             setBackgroundScroll(currentScroll);
         }
-        currentScreen = newScreen;
-        drawLinesBottom = 0;
-        drawLinesTop = 0;
+        currentScreenIndex = newScreenIndex;
         frameCounter = 0;
-        getLevelScreen(currentScreen);
-        //renderLevelScreen();
+        // Trigger the level texture loader.
+        getLevelScreen(currentScreenIndex);
     }
 }
 
-static short prevScroll;
-
 static void render(void) {
     if (frameCounter < 2) {
-        prevScroll = currentScroll;
+        // Render the entire screen for the two frames.
+        // This has to be done twice, one time for each
+        // buffer. See explanation at the end of the function.
         renderLevelScreen(currentScroll);
         ++frameCounter;
     } else {
+        // Workaround to clean graphical glitches that happen when the screen is scrolling.
+        if (clearArtifactsOnNextFrame) {
+            forceCleanLevelArtifactAt(prevKingSX[!vBuffer], prevKingSY[!vBuffer], PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT);
+            clearArtifactsOnNextFrame = 0;
+        }
+
         // Only decrement by half here since we need the
         // sprite's center Y coordinate for calculating the scroll.
         kingSY[vBuffer] -= PLAYER_SPRITE_HALFH;
@@ -102,32 +111,50 @@ static void render(void) {
         if (targetScroll != currentScroll) {
             // Linear interpolate between the current screen scroll value
             // and the target screen scroll value.
-            currentScroll = currentScroll + (short) roundf(((float) (targetScroll - currentScroll)) * SCREEN_SCROLL_SPEED);
+            currentScroll = currentScroll + (short) ceilf(((float) (targetScroll - currentScroll)) * SCREEN_SCROLL_SPEED);
             // Scroll the screen.
             setBackgroundScroll(currentScroll);
-            // Workaround to clean graphical glitches that happen when the screen is scrolling.
-            forceCleanLevelArtifactAt(kingSX[vBuffer], kingSY[vBuffer], PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT);
+            // Trigger the workaround to clear artifacts on the next frame.
+            // It has to be done on the next frame as we need to wait for
+            // the current frame to finish rendering.
+            clearArtifactsOnNextFrame = 1;
         }
 
-        // Render new screen lines
-        if (targetScroll < minScroll) {
+        // Render new screen lines.
+        if (currentScroll < minScroll) {
+            // If we're scrolling upwards, render the lines at the top of the screen.
             renderLevelScreenLinesTop(currentScroll, minScroll - currentScroll);
-            if (++frameCounter % 2 == 0) {
-                minScroll = prevScroll;
-            }
-        } else if (targetScroll > maxScroll) {
+            // This value keeps track of the lowest scroll value ever reached
+            // during the time the current screen has been shown. Remeber that
+            // the lower the scroll value, the higher we are in the level screen.
+            minScroll = currentScroll;
+            // Disable "VSync" for this frame. This has to be done
+            // to not lag the game. It causes some artifacting
+            // near the top of the screen, but it's better than
+            // having the game lag while the screen is scrolling.
+            skipWaitForThisFrame();            
+        } else if (currentScroll > maxScroll) {
+            // If we're scrolling downwards, render the lines at the bottom of the screen.
             renderLevelScreenLinesBottom(currentScroll, currentScroll - maxScroll);
-            if (++frameCounter % 2 == 0) {
-                maxScroll = prevScroll;
-            }
+            // This value keeps track of the highest scroll value ever reached
+            // during the time the current screen has been shown. Remeber that
+            // the higher the scroll value, the lower we are in the level screen.
+            maxScroll = currentScroll;
+            // Same as above, but the artifact are now at the
+            // bottom of the screen.
+            skipWaitForThisFrame();
         }
-
-        prevScroll = currentScroll;
+        // The minScroll and maxScroll values are used to remember how much of the
+        // current screen we have already rendered. Once a line has been rendered,
+        // it stays in the draw buffer until we switch screens. 
 
         // Paint over where the king was in the previous frame.
         // Add a 4 pixel padding to account for the error introduced by the fixed update loop.
         renderLevelScreenSection(kingSX[vBuffer] - 2, kingSY[vBuffer] - 2, PLAYER_SPRITE_WIDTH + 4, PLAYER_SPRITE_HEIGHT + 4, currentScroll);
     }
+
+    prevKingSX[vBuffer] = kingSX[vBuffer];
+    prevKingSY[vBuffer] = kingSY[vBuffer];
     
     // Render the player.
     kingRender(&kingSX[vBuffer], &kingSY[vBuffer], currentScroll);

@@ -296,7 +296,8 @@ void kingCreate(void) {
     playerDeltaU = 0.0f;
 }
 
-void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
+void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) {
+    // Fix the player update loop to 60 updates per second.
     playerDeltaU += delta;
     if (playerDeltaU < PLAYER_UPDATE_DELTA) {
         return;
@@ -425,22 +426,22 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreen) {
         // If the player has left the screen from the top side...
         player.graphics.sy += LEVEL_SCREEN_PXHEIGHT;
         player.physics.y -= LEVEL_SCREEN_PXHEIGHT;
-        *outScreen += 1;
+        *outScreenIndex += 1;
     } else if (player.graphics.sy - PLAYER_HITBOX_HALFH >= LEVEL_SCREEN_PXHEIGHT) {
         // If the player has left the screen from the bottom side...
         player.graphics.sy -= LEVEL_SCREEN_PXHEIGHT;
         player.physics.y += LEVEL_SCREEN_PXHEIGHT;
-        *outScreen -= 1;
+        *outScreenIndex -= 1;
     } else if (player.graphics.sx - PLAYER_HITBOX_HALFW < 0) {
         // If the player has left the screen from the left side...
         player.graphics.sx += LEVEL_SCREEN_PXWIDTH;
         player.physics.x += LEVEL_SCREEN_PXWIDTH;
-        *outScreen = screen->teleportIndex;
+        *outScreenIndex = screen->teleportIndex;
     } else if (player.graphics.sx + PLAYER_HITBOX_HALFW > LEVEL_SCREEN_PXWIDTH) {
         // If the player has left the screen from the right side...
         player.graphics.sx -= LEVEL_SCREEN_PXWIDTH;
         player.physics.x -= LEVEL_SCREEN_PXWIDTH;
-        *outScreen = screen->teleportIndex;
+        *outScreenIndex = screen->teleportIndex;
     }
 
     // Update graphics
@@ -524,10 +525,10 @@ void kingRender(short *outSX, short *outSY, unsigned int currentScroll) {
     sceGuEnable(GU_BLEND);
     sceGuBlendFunc(GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
     // Set the texture as the current selected sprite for the player.
-    sceGuTexMode(GU_PSM_8888, 0, 0, 0);
+    sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
     sceGuTexImage(0, PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT, PLAYER_SPRITE_WIDTH, player.graphics.sprite);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGBA);
-    sceGuTexFilter(GU_LINEAR, GU_LINEAR);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     // Draw it!
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
     // Disable blending since it's not needed anymore.

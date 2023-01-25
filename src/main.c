@@ -55,7 +55,7 @@ static void startFrame(void) {
 }
 
 static void endFrame(void) {
-    // Start rendering bitch
+    // Start rendering.
     sceGuFinish();
     // Wait for render to finish.
     if (waitForFrame) {
@@ -77,7 +77,7 @@ static void initGu(void) {
     // Reserve VRAM for draw, display and depth buffers.
     drawBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
     dispBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
-    depthBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, 272, GU_PSM_4444)));
+    depthBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, PSP_SCREEN_HEIGHT, GU_PSM_4444)));
     // Initialize the graphics utility.
     sceGuInit();
     sceGuStart(GU_DIRECT, displayList[vBuffer]);
@@ -162,34 +162,21 @@ void setClearFlags(int flags) {
     clearFlags = flags;
 }
 
-void setBackgroundData(void *data, unsigned int width, unsigned int height) {
-    unsigned int size = getVramMemorySize(width, height, GU_PSM_8888);
-    memcpy(vabsptr(drawBuffer), data, size);
-    memcpy(vabsptr(dispBuffer), data, size);
-    memset(vabsptr(depthBuffer), 0, getVramMemorySize(width, height, GU_PSM_4444));
-}
-
-void cleanBackgroundAt(void *data, short x, short y, short w, short h, unsigned int stride) {
-    unsigned int *pixels = data;
+void updateDisplayBufferRegion(short x, short y, short w, short h) {
     unsigned int *disp = vabsptr(dispBuffer);
-    for (short hh = 0; hh < h; hh++) {
-        for (short ww = 0; ww < w; ww++) {
-            int offset = (y + hh) * stride + (x + ww);
-            disp[offset] = pixels[offset];
-        }
-    }
+    unsigned int *draw = vabsptr(drawBuffer);
+    sceGuCopyImage(GU_PSM_8888, x, y, w, h, BUFFER_WIDTH, draw, x, y, BUFFER_WIDTH, disp);
 }
 
 void setBackgroundScroll(short offset) {
     if (offset > SCREEN_MAX_SCROLL) {
-        panic("Scroll scroll too big. Got %d but the maximum is %d", offset, SCREEN_MAX_SCROLL);
+        panic("Scroll value too big. Got %d but the maximum is %d", offset, SCREEN_MAX_SCROLL);
     } else if (offset < 0) {
-        panic("Scroll scroll is negative. Got %d", offset);
+        panic("Scroll value is negative. Got %d", offset);
     }
     unsigned int bufferOffset = getVramMemorySize(BUFFER_WIDTH, (unsigned int) offset, GU_PSM_8888);
     sceGuDrawBuffer(GU_PSM_8888, ((char *) drawBuffer) + bufferOffset, BUFFER_WIDTH);
     sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, ((char *) dispBuffer) + bufferOffset, BUFFER_WIDTH);
-    //sceGuDepthBuffer(((char *) depthBuffer) + getVramMemorySize(BUFFER_WIDTH, (unsigned int) offset, GU_PSM_4444), BUFFER_WIDTH);
 }
 
 void skipWaitForThisFrame(void) {

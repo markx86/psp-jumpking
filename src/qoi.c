@@ -33,7 +33,7 @@ typedef union {
 
 static const unsigned char qoiPadding[8] = {0,0,0,0,0,0,0,1};
 
-static unsigned int qoi_read_32(const unsigned char *bytes, int *p) {
+static unsigned int qoiRead32(const unsigned char *bytes, int *p) {
 	unsigned int a = bytes[(*p)++];
 	unsigned int b = bytes[(*p)++];
 	unsigned int c = bytes[(*p)++];
@@ -59,9 +59,9 @@ int qoiDecode(const void *data, int size, QoiDescriptor *desc, void *out) {
 
 	bytes = (const unsigned char *)data;
 
-	header_magic = qoi_read_32(bytes, &p);
-	desc->width = qoi_read_32(bytes, &p);
-	desc->height = qoi_read_32(bytes, &p);
+	header_magic = qoiRead32(bytes, &p);
+	desc->width = qoiRead32(bytes, &p);
+	desc->height = qoiRead32(bytes, &p);
 	desc->channels = bytes[p++];
 	desc->colorspace = bytes[p++];
 

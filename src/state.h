@@ -23,8 +23,7 @@ extern SceCtrlLatch __latchData;
 // Essential functions needed by (almost) every state.
 extern void switchState(const GameState *new);
 extern void setClearFlags(int flags);
-extern void setBackgroundData(void *data, unsigned int width, unsigned int height);
-extern void cleanBackgroundAt(void *data, short x, short y, short w, short h, unsigned int stride);
+extern void updateDisplayBufferRegion(short x, short y, short w, short h);
 extern void setBackgroundScroll(short offset);
 extern void skipWaitForThisFrame(void);
 
