@@ -181,7 +181,7 @@ void renderLevelScreenLinesTop(short scroll, short lines) {
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
     
     // Update the display buffer to avoid graphical glitches.
-    updateDisplayBufferRegion(0, scroll, PSP_SCREEN_WIDTH, lines);
+    queueDisplayBufferUpdate(0, scroll, PSP_SCREEN_WIDTH, lines);
 }
 
 void renderLevelScreenLinesBottom(short scroll, short lines) {
@@ -208,7 +208,7 @@ void renderLevelScreenLinesBottom(short scroll, short lines) {
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
 
     // Update the display buffer to avoid graphical glitches.
-    updateDisplayBufferRegion(0, offset + scroll, PSP_SCREEN_WIDTH, lines);
+    queueDisplayBufferUpdate(0, offset + scroll, PSP_SCREEN_WIDTH, lines);
 }
 
 void forceCleanLevelArtifactAt(short x, short y, short width, short height) {
@@ -226,7 +226,7 @@ void forceCleanLevelArtifactAt(short x, short y, short width, short height) {
         y = LEVEL_SCREEN_PXHEIGHT - height;
     }
     
-    updateDisplayBufferRegion(x, y, width, height);
+    queueDisplayBufferUpdate(x, y, width, height);
 }
 
 void renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll) {

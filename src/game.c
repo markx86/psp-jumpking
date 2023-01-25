@@ -7,7 +7,7 @@
 
 static short kingSX[2], kingSY[2];
 static short prevKingSX[2], prevKingSY[2];
-static unsigned int vBuffer, frameCounter, currentScreenIndex, clearArtifactsOnNextFrame;
+static unsigned int vBuffer, frameCounter, currentScreenIndex;
 static short currentScroll, targetScroll, minScroll, maxScroll;
 
 static void init(void) {
@@ -28,8 +28,8 @@ static void init(void) {
     kingCreate();
 
     // Initialize screen scroll.
-    currentScroll = SCREEN_MAX_SCROLL;
-    targetScroll = SCREEN_MAX_SCROLL;
+    currentScroll = PSP_SCREEN_MAX_SCROLL;
+    targetScroll = PSP_SCREEN_MAX_SCROLL;
     minScroll = currentScroll;
     maxScroll = currentScroll;
     setBackgroundScroll(currentScroll);
@@ -53,7 +53,7 @@ static void update(float delta) {
                 // If the player has moved up a screen,
                 // we want to render the new screen from
                 // the bottom.
-                targetScroll = SCREEN_MAX_SCROLL;
+                targetScroll = PSP_SCREEN_MAX_SCROLL;
                 currentScroll = targetScroll;
             } else {
                 // If the player has moved down a screen,
@@ -81,20 +81,14 @@ static void render(void) {
         renderLevelScreen(currentScroll);
         ++frameCounter;
     } else {
-        // Workaround to clean graphical glitches that happen when the screen is scrolling.
-        if (clearArtifactsOnNextFrame) {
-            forceCleanLevelArtifactAt(prevKingSX[!vBuffer], prevKingSY[!vBuffer], PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT);
-            clearArtifactsOnNextFrame = 0;
-        }
-
         // Only decrement by half here since we need the
         // sprite's center Y coordinate for calculating the scroll.
         kingSY[vBuffer] -= PLAYER_SPRITE_HALFH;
 
         // Compute and output the new screen scroll value.
         short scroll = kingSY[vBuffer] - PSP_SCREEN_HEIGHT / 2;
-        if (scroll > SCREEN_MAX_SCROLL) {
-            scroll = SCREEN_MAX_SCROLL;
+        if (scroll > PSP_SCREEN_MAX_SCROLL) {
+            scroll = PSP_SCREEN_MAX_SCROLL;
         } else if (scroll < 0) {
             scroll = 0;
         }
@@ -114,10 +108,8 @@ static void render(void) {
             currentScroll = currentScroll + (short) ceilf(((float) (targetScroll - currentScroll)) * SCREEN_SCROLL_SPEED);
             // Scroll the screen.
             setBackgroundScroll(currentScroll);
-            // Trigger the workaround to clear artifacts on the next frame.
-            // It has to be done on the next frame as we need to wait for
-            // the current frame to finish rendering.
-            clearArtifactsOnNextFrame = 1;
+            // Workaround to clear scrolling artifacts.
+            forceCleanLevelArtifactAt(prevKingSX[vBuffer], prevKingSY[vBuffer], PLAYER_SPRITE_WIDTH, PLAYER_SPRITE_HEIGHT);
         }
 
         // Render new screen lines.

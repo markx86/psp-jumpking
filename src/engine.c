@@ -1,7 +1,5 @@
 #include <pspuser.h>
 #include <pspdisplay.h>
-#include <pspctrl.h>
-#include <pspgu.h>
 #include <string.h>
 #include "alloc.h"
 #include "state.h"
@@ -17,16 +15,21 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 
 #define DISPLAY_LIST_SIZE 0x40000
 
+typedef struct {
+    short x, y;
+    short width, height;
+} DisplayBufferUpdate;
+
 SceCtrlData __ctrlData;
 SceCtrlLatch __latchData;
 
-static char __displayList1[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
-static char __displayList2[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
-
-static char *displayList[2] = { __displayList1, __displayList2 };
+static char displayList1[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
+static char displayList2[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
+static DisplayBufferUpdate dispBufferUpdates[8];
+static char *displayList[2] = { displayList1, displayList2 };
 static int running, clearFlags, waitForFrame, vBuffer;
+static int queuedDispBufferUpdates;
 static void *drawBuffer, *dispBuffer, *depthBuffer;
-static const GameState *__currentState;
 
 static int exitCallback(int arg1, int arg2, void *common) {
     running = 0;
@@ -52,6 +55,14 @@ static int setupCallbacks(void) {
 static void startFrame(void) {
     sceGuStart(GU_DIRECT, displayList[vBuffer]);
     sceGuClear(clearFlags);
+
+    unsigned int *disp = vabsptr(dispBuffer);
+    unsigned int *draw = vabsptr(drawBuffer);
+    for (int i = 0; i < queuedDispBufferUpdates; i++) {
+        DisplayBufferUpdate *u = &dispBufferUpdates[i];
+        sceGuCopyImage(GU_PSM_8888, u->x, u->y, u->width, u->height, BUFFER_WIDTH, draw, u->x, u->y, BUFFER_WIDTH, disp);
+    }
+    queuedDispBufferUpdates = 0;
 }
 
 static void endFrame(void) {
@@ -144,33 +155,27 @@ static void init(void) {
 }
 
 static void cleanup(void) {
-    __currentState->cleanup();
+    cleanupCurrentState();
     endGu();
     endLoader();
     sceKernelExitGame();
-}
-
-void switchState(const GameState *new) {
-    if (__currentState != NULL) {
-        __currentState->cleanup();
-    }
-    __currentState = new;
-    __currentState->init();
 }
 
 void setClearFlags(int flags) {
     clearFlags = flags;
 }
 
-void updateDisplayBufferRegion(short x, short y, short w, short h) {
-    unsigned int *disp = vabsptr(dispBuffer);
-    unsigned int *draw = vabsptr(drawBuffer);
-    sceGuCopyImage(GU_PSM_8888, x, y, w, h, BUFFER_WIDTH, draw, x, y, BUFFER_WIDTH, disp);
+void queueDisplayBufferUpdate(short x, short y, short w, short h) {
+    dispBufferUpdates[queuedDispBufferUpdates].x = x;
+    dispBufferUpdates[queuedDispBufferUpdates].y = y;
+    dispBufferUpdates[queuedDispBufferUpdates].width = w;
+    dispBufferUpdates[queuedDispBufferUpdates].height = h;
+    ++queuedDispBufferUpdates;
 }
 
 void setBackgroundScroll(short offset) {
-    if (offset > SCREEN_MAX_SCROLL) {
-        panic("Scroll value too big. Got %d but the maximum is %d", offset, SCREEN_MAX_SCROLL);
+    if (offset > PSP_SCREEN_MAX_SCROLL) {
+        panic("Scroll value too big. Got %d but the maximum is %d", offset, PSP_SCREEN_MAX_SCROLL);
     } else if (offset < 0) {
         panic("Scroll value is negative. Got %d", offset);
     }
@@ -194,11 +199,12 @@ int main(void) {
         sceCtrlReadLatch(&__latchData);
         // Update the current state.
         float delta = (float) (thisFrameTime - lastFrameTime) / 1000000.0f;
-        __currentState->update(delta);
+        updateCurrentState(delta);
         // Render the current state.
         startFrame();
-        __currentState->render();
+        renderCurrentState();
         endFrame();
+        // Update the frame time.
         lastFrameTime = thisFrameTime;
     }
     cleanup();
