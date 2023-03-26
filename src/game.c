@@ -142,7 +142,7 @@ static void render(void) {
 
         // Paint over where the king was in the previous frame.
         // Add a 4 pixel padding to account for the error introduced by the fixed update loop.
-        renderLevelScreenSection(kingSX[vBuffer] - 2, kingSY[vBuffer] - 2, PLAYER_SPRITE_WIDTH + 4, PLAYER_SPRITE_HEIGHT + 4, currentScroll);
+        renderLevelScreenSection(kingSX[vBuffer] - 8, kingSY[vBuffer] - 8, PLAYER_SPRITE_WIDTH + 16, PLAYER_SPRITE_HEIGHT + 16, currentScroll);
     }
 
     prevKingSX[vBuffer] = kingSX[vBuffer];

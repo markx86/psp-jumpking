@@ -35,6 +35,8 @@
 #define PLAYER_CHARGE_TIME 0.6f
 #define PLAYER_STUN_TIME 0.5f
 #define PLAYER_MAX_FALL_TIME 1.0f
+
+// Macros
 #define PLAYER_GET_SPRITE(idx) (allSprites + PLAYER_SPRITE_WIDTH * PLAYER_SPRITE_HEIGHT * 4 * (idx))
 
 // Player sprites
@@ -60,31 +62,57 @@ typedef enum {
     COLLMOD_ICE = 16,
     COLLMOD_SNOW = 32,
     COLLMOD_SOLID = 64,
+    COLLMOD_SLOPE = 128,
 } CollisionModifier;
 
+typedef struct {
+    // the collision modifiers
+    union {
+        unsigned char modifiers;
+        struct {
+            unsigned char noWind : 1;
+            unsigned char isWater : 1;
+            unsigned char isSand : 1;
+            unsigned char isQuark : 1;
+            unsigned char isIce : 1;
+            unsigned char isSnow : 1;
+            unsigned char isSolid : 1;
+            unsigned char isSlope : 1;
+        };
+    };
+    // the block the player has collided with
+    LevelScreenBlock block;
+    // the map coordinates of the collision (relative to the top-left corner of the block)
+    short mapX, mapY;
+    // the screen coordinates of the collision (relative to the top-left corner of the block)
+    short screenX, screenY;
+    // the coordinates of the collision relative to the player sprite center's screen coordinates
+    short offsetX, offsetY;
+} CollisionInfo;
+
 // Coordinates
-float worldX, worldY;
-float velocityX, velocityY;
-short screenX, screenY;
+static float worldX, worldY;
+static float velocityX, velocityY;
+static short screenX, screenY;
 // Input
-short direction, jumpPressed;
+static short direction, jumpPressed;
 // Flags
-char inAir, hitWallMidair, maxJumpPowerReached, isStunned;
+static char inAir, hitWallMidair, maxJumpPowerReached, isStunned;
 // Status
-float jumpPower, stunTime, fallTime;
+static float jumpPower, stunTime, fallTime;
 // Graphics
-short walkAnimCycle, spriteUOffset;
-SpriteIndex currentSpriteIndex;
+static short walkAnimCycle, spriteUOffset;
+static SpriteIndex currentSpriteIndex;
 static char *currentSprite, *allSprites;
 
 static float deltaU;
 
-static char blockPropertiesMap[] = {
+static char blockCollisionData[] = {
+    COLLMOD_SOLID | COLLMOD_SLOPE,
+    COLLMOD_SOLID | COLLMOD_SLOPE,
+    COLLMOD_SOLID | COLLMOD_SLOPE,
+    COLLMOD_SOLID | COLLMOD_SLOPE,
     COLLMOD_NONE,
-    COLLMOD_SOLID,
-    COLLMOD_SOLID,
-    COLLMOD_SOLID,
-    COLLMOD_SOLID,
     COLLMOD_SOLID,
     COLLMOD_NONE,
     COLLMOD_SOLID | COLLMOD_ICE,
@@ -95,151 +123,119 @@ static char blockPropertiesMap[] = {
     COLLMOD_QUARK
 };
 
-static void kingDoCollision(float newX, float newY, LevelScreen *screen) {
-    // Convert new player position to screen coordinates.
-    short newSX = ((short) newX) + (LEVEL_SCREEN_PXWIDTH / 2);
-    short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
+static float slopeNormals[4][2] = {
+    { -1.0f, -1.0f },
+    { +1.0f, -1.0f },
+    { -1.0f, +1.0f },
+    { +1.0f, +1.0f }
+};
 
-    // Compute player's map coordinates
-    // NOTE: add one in case we are moving from left to right or up to down to account
-    //       for the size of the block. This has to be done because the block coordinates
-    //       in the collision map are relative to the top-left corner of the block.
-    short mapX = newSX / LEVEL_BLOCK_SIZE + (velocityX > 0.0f);
-    short mapY = (newSY - PLAYER_HITBOX_HALFH) / LEVEL_BLOCK_SIZE + (velocityY < 0.0f);
-    // Get collision info
-    int minDist2 = -1;          // the distance of the closest block that has collided with the player
-    short collX, collY;         // the screen coordinates of the collision (relative to the top-left corner of the block)
-    short collMapX, collMapY;   // the map coordinates of the collision (relative to the top-left corner of the block)
-    short collOffX, collOffY;   // the coordinates of the collision relative to the player sprite center's screen coordinates
-    LevelScreenBlock collBlock; // the block the player has collided with
-    char collModifiers = 0;     // the collision modifiers
-    // Loop through all the blocks the player's sprite is occupying
-    for (short y = -PLAYER_HITBOX_BLOCK_HALFH; y < PLAYER_HITBOX_BLOCK_HALFH; y++) {
-        for (short x = -PLAYER_HITBOX_BLOCK_HALFW; x < PLAYER_HITBOX_BLOCK_HALFW; x++) {
-            int lx = mapX + x;
-            int ly = mapY + y;
-            // Check if the block is in the current screen...
-            if (lx < 0 || lx >= LEVEL_SCREEN_WIDTH || ly < 0 || ly >= LEVEL_SCREEN_HEIGHT) {
+static short checkCollision(short sx, short sy, LevelScreen* screen, CollisionInfo* info) {
+    short minDist2 = -1;
+    short padX = velocityX > 0.0f;
+    short padY = velocityY < 0.0f;
+    sy -= PLAYER_HITBOX_HALFH;
+    for (short oy = -PLAYER_HITBOX_HALFH; oy < PLAYER_HITBOX_HALFH; oy += LEVEL_BLOCK_SIZE) {
+        for (short ox = -PLAYER_HITBOX_HALFW; ox < PLAYER_HITBOX_HALFW; ox += LEVEL_BLOCK_SIZE) {
+            short cx = sx + ox;
+            short cy = sy + oy;
+            short mx = cx / LEVEL_BLOCK_SIZE + padX;
+            short my = cy / LEVEL_BLOCK_SIZE + padY;
+            if (mx < 0 || mx >= LEVEL_SCREEN_WIDTH) {
                 continue;
             }
-            LevelScreenBlock block = screen->blocks[ly][lx];
-            // Update the collision modifiers
-            collModifiers |= blockPropertiesMap[block];
+            if (my < 0 || my >= LEVEL_SCREEN_HEIGHT) {
+                continue;
+            }
+            LevelScreenBlock block = screen->blocks[my][mx];
+            info->modifiers |= blockCollisionData[block];
             if (LEVEL_BLOCK_ISSOLID(block)) {
-                // If the player is colliding with a block
-                // compute the distance of the collision relative
-                // to the center of the player's sprite
-                int dist2 = x * x + y * y;
+                short dist2 = ox * ox + oy * oy;
                 if (minDist2 < 0 || dist2 <= minDist2) {
-                    // If this is the closest collision,
-                    // store the collision information
                     minDist2 = dist2;
-                    collX = lx * LEVEL_BLOCK_SIZE;
-                    collY = ly * LEVEL_BLOCK_SIZE;
-                    collMapX = lx;
-                    collMapY = ly;
-                    collOffX = x * LEVEL_BLOCK_SIZE;
-                    collOffY = y * LEVEL_BLOCK_SIZE;
-                    collBlock = block;
+                    info->screenX = cx;
+                    info->screenY = cy;
+                    info->mapX = mx;
+                    info->mapY = my;
+                    info->offsetX = ox;
+                    info->offsetY = oy;
+                    info->block = block;
                 }
             }
         }
     }
+    return minDist2 >= 0;
+}
+
+static short debugX = 0, debugY = 0;
+static short debugCX = 0, debugCY = 0;
+static short prevHDir = 0, prevVDir = 0;
+
+static void doCollision(float newX, float newY, LevelScreen *screen) {
+    // Convert new player position to screen coordinates.
+    short newSX = ((short) newX) + (LEVEL_SCREEN_PXWIDTH / 2);
+    short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
+    CollisionInfo info;
+
+    short xCheck = (velocityX != 0.0f);
+    short yCheck = (velocityY != 0.0f);
+    short hDir = (velocityX > 0.0f) ? +1 : -1;
+    short vDir = (velocityY < 0.0f) ? +1 : -1;
 
     // If the player has collided with something...
-    if (minDist2 >= 0) {
-        if (collModifiers & COLLMOD_SOLID) {
-            minDist2 = -1;
-            int adjX = -1, adjY = -1;
-            int deltaX, deltaY;
-            int refX = screenX;
-            int refY = screenY - PLAYER_HITBOX_HALFH;
-            // Find the closest free block to the collision block.
-            for (short y = -2; y <= 2; y++) {
-                for (short x = -2; x <= 2; x++) {
-                    int lx = collMapX + x;
-                    int ly = collMapY + y;
-                    // Check if the block is in the current screen...
-                    if (lx < 0 || lx >= LEVEL_SCREEN_WIDTH || ly < 0 || ly >= LEVEL_SCREEN_HEIGHT) {
-                        continue;
-                    }
-                    if (!LEVEL_BLOCK_ISSOLID(screen->blocks[ly][lx])) {
-                        int newAdjX = lx * LEVEL_BLOCK_SIZE;
-                        int newAdjY = ly * LEVEL_BLOCK_SIZE;
-                        int newDeltaX = (newAdjX > collX) ? (newAdjX - collX) : (collX - newAdjX);
-                        int newDeltaY = (newAdjY > collY) ? (newAdjY - collY) : (collY - newAdjY);
-                        int dx = newAdjX + LEVEL_BLOCK_HALF - refX;
-                        int dy = newAdjY + LEVEL_BLOCK_HALF - refY;
-                        int dist2 = (dx * dx + dy * dy) + (newDeltaX * newDeltaX + newDeltaY * newDeltaY) * 2;
-                        if (minDist2 < 0 || dist2 <= minDist2) {
-                            if (dist2 == minDist2) {
-                                // If the distance between two free blocks is the same,
-                                // prioritize the block with the least distance from the
-                                // center of the collision block.
-                                if (newDeltaX < deltaX) {
-                                    adjX = newAdjX;
-                                    deltaX = newDeltaX;
-                                }
-                                if (newDeltaY < deltaY) {
-                                    adjY = newAdjY;
-                                    deltaY = newDeltaY;
-                                }
-                            } else {
-                                adjX = newAdjX;
-                                adjY = newAdjY;
-                                deltaX = newDeltaX;
-                                deltaY = newDeltaY;
-                            }
-                            minDist2 = dist2;
-                        }
-                    }
+    if (checkCollision(newSX, newSY, screen, &info)) {
+        short wasVerticalCollision = 0;
+        short collX = info.mapX;
+        short collY = info.mapY;
+        short invalidCollX = 0;
+        short invalidCollY = 0;
+        while (!invalidCollX || !invalidCollY) {
+            if (!xCheck || collX < 0 || collX >= LEVEL_SCREEN_PXWIDTH) {
+                invalidCollX = 1;
+            } else {
+                if (LEVEL_BLOCK_ISSOLID(screen->blocks[info.mapY][collX])) {
+                    collX -= hDir;
+                } else {
+                    wasVerticalCollision = 0;
+                    newSX += (collX * LEVEL_BLOCK_SIZE) - info.screenX;
+                    newX = (float)(newSX - (short)(LEVEL_SCREEN_PXWIDTH / 2));
+                    debugCX = collX << 3;
+                    debugCY = info.screenY;
+                    debugX = info.mapX << 3;
+                    debugY = info.screenY;
+                    break;
                 }
             }
-
-            // If the correction applied to the player position was
-            // greater along the Y-axis, then the collision was a vertical one
-            int wasVerticalCollision = deltaX <= deltaY;
-
-            // Compute new corrected player screen coordinates and position
-            if (wasVerticalCollision) {
-                newSY = adjY - collOffY + PLAYER_HITBOX_HALFH;
-                newY = (float) (LEVEL_SCREEN_PXHEIGHT - newSY);
+            if (!yCheck || collY < 0 || collY >= LEVEL_SCREEN_PXHEIGHT) {
+                invalidCollY = 1;
             } else {
-                newSX = adjX - collOffX;
-                newX = ((float) newSX) - ((float) LEVEL_SCREEN_PXWIDTH / 2);
+                if (LEVEL_BLOCK_ISSOLID(screen->blocks[collY][info.mapX])) {
+                    collY -= vDir;
+                } else {
+                    wasVerticalCollision = 1;
+                    newSY += (collY * LEVEL_BLOCK_SIZE) - info.screenY;
+                    newY = (float)(LEVEL_SCREEN_PXHEIGHT - newSY);
+                    debugCX = info.screenX;
+                    debugCY = collY << 3;
+                    debugX = info.screenX;
+                    debugY = info.mapY << 3;
+                    break;
+                }
             }
-
-            int isBlockSlope = LEVEL_BLOCK_ISSLOPE(collBlock);
-
-            // If the player is in the air and has collided vertically, while falling,
-            // and the block it has collided with is not a slope.
-            inAir = inAir && (!wasVerticalCollision || velocityY >= 0.0f);
-
-            // If the player has hit the floor and has reached it's terminal falling velocity,
-            // the player has to be stunned.
-            // TODO: handle slopes
-            isStunned = !isBlockSlope && !inAir && fallTime > PLAYER_MAX_FALL_TIME;
-            // If the player has been stunned set the timer.
-            stunTime = isStunned * PLAYER_STUN_TIME;
-
-            // If the player is in the air and has collided with something
-            // horizontally, they've hit a wall.
-            // TODO: handle slopes
-            hitWallMidair = (inAir || velocityY > 0.0f) && !wasVerticalCollision;
-
-            // Reset the fall time if something was hit.
-            if (isBlockSlope || wasVerticalCollision && velocityY > 0.0f) {
-                fallTime = 0.0f;
-            }
-
-            // TODO: - apply speed dampening effects
-            //       - handle slopes and sliding
-            velocityX = (!wasVerticalCollision || velocityY > 0.0f) * -velocityX * PLAYER_WALL_BOUNCE;
-            velocityY = !wasVerticalCollision * velocityY;
+        }
+        if (invalidCollX && invalidCollY) {
+            return;
         }
 
-        // TODO: take into account special modifiers that don't necessarily
-        //       modify the player's position
+        inAir = inAir && (!wasVerticalCollision || velocityY > 0.0f);
+        isStunned = !info.isSlope && !inAir && fallTime > PLAYER_MAX_FALL_TIME;
+        stunTime = isStunned * PLAYER_STUN_TIME;
+        hitWallMidair = (inAir || velocityY > 0.0f) && !wasVerticalCollision;
+        if (info.isSlope || (wasVerticalCollision && velocityY > 0.0f)) {
+            fallTime = 0.0f;
+        }
+        velocityX = (!wasVerticalCollision || velocityY > 0.0f) * -velocityX * PLAYER_WALL_BOUNCE;
+        velocityY *= !wasVerticalCollision;
     }
 
     // Update physics
@@ -258,10 +254,10 @@ static void kingDoCollision(float newX, float newY, LevelScreen *screen) {
 }
 
 void kingCreate(void) {
-    allSprites = loadTextureVram("host0://assets/king/base/regular.qoi", NULL, NULL);
+    allSprites = loadTextureVram("assets/king/base/regular.qoi", NULL, NULL);
     // Set the player starting position.
-    worldX = 0.0f;
-    worldY = 32.0f;
+    worldX = 13.0f * 8.0f;
+    worldY = 22.0f * 8.0f;
     // Set the player initial speed.
     velocityX = 0.0f;
     velocityY = 0.0f;
@@ -322,7 +318,7 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
             // Check if the player is standing on solid ground.
             int mapX = screenX / LEVEL_BLOCK_SIZE;
             int mapY = screenY / LEVEL_BLOCK_SIZE;
-            for (int x = -PLAYER_HITBOX_BLOCK_HALFW; x < PLAYER_HITBOX_BLOCK_HALFW; x++) {
+            for (int x = -PLAYER_HITBOX_BLOCK_HALFW; x <= PLAYER_HITBOX_BLOCK_HALFW; x++) {
                 LevelScreenBlock block = screen->blocks[mapY][mapX + x];
                 inAir |= LEVEL_BLOCK_ISSOLID(block) && !LEVEL_BLOCK_ISSLOPE(block);
             }
@@ -414,7 +410,7 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
     
     // If the player is within the leve screen bounds,
     // handle collisions.
-    kingDoCollision(newX, newY, screen);
+    doCollision(newX, newY, screen);
 
     if (screenY - PLAYER_HITBOX_HALFH < 0) {
         // If the player has left the screen from the top side...
@@ -426,12 +422,12 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
         screenY -= LEVEL_SCREEN_PXHEIGHT;
         worldY += LEVEL_SCREEN_PXHEIGHT;
         *outScreenIndex -= 1;
-    } else if (screenX - PLAYER_HITBOX_HALFW < 0) {
+    } else if (screenX < 0) {
         // If the player has left the screen from the left side...
         screenX += LEVEL_SCREEN_PXWIDTH;
         worldX += LEVEL_SCREEN_PXWIDTH;
         *outScreenIndex = screen->teleportIndex;
-    } else if (screenX + PLAYER_HITBOX_HALFW > LEVEL_SCREEN_PXWIDTH) {
+    } else if (screenX > LEVEL_SCREEN_PXWIDTH) {
         // If the player has left the screen from the right side...
         screenX -= LEVEL_SCREEN_PXWIDTH;
         worldX -= LEVEL_SCREEN_PXWIDTH;
@@ -525,8 +521,45 @@ void kingRender(short *outSX, short *outSY, unsigned int currentScroll) {
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     // Draw it!
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
+
+    sceGuDisable(GU_TEXTURE_2D);
+
+    Vertex* hitboxVerts = sceGuGetMemory(2 * sizeof(Vertex));
+    hitboxVerts[0].x = screenX - PLAYER_HITBOX_HALFW;
+    hitboxVerts[0].y = screenY - currentScroll - PLAYER_HITBOX_HEIGHT;
+    hitboxVerts[0].z = 3;
+    hitboxVerts[1].x = screenX + PLAYER_HITBOX_HALFW;
+    hitboxVerts[1].y = screenY - currentScroll;
+    hitboxVerts[1].z = 3;
+    sceGuColor(0xA00000FF);
+    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, hitboxVerts);
+
+    Vertex* debugVerts = sceGuGetMemory(2 * sizeof(Vertex));
+    debugVerts[0].x = debugX;
+    debugVerts[0].y = debugY - currentScroll;
+    debugVerts[0].z = 4;
+    debugVerts[1].x = debugX + LEVEL_BLOCK_SIZE;
+    debugVerts[1].y = debugY - currentScroll + LEVEL_BLOCK_SIZE;
+    debugVerts[1].z = 4;
+    sceGuColor(0xA000FFFF);
+    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, debugVerts);
+
+    Vertex* debugCollVerts = sceGuGetMemory(2 * sizeof(Vertex));
+    debugCollVerts[0].x = debugCX;
+    debugCollVerts[0].y = debugCY - currentScroll;
+    debugCollVerts[0].z = 5;
+    debugCollVerts[1].x = debugCX + LEVEL_BLOCK_SIZE;
+    debugCollVerts[1].y = debugCY - currentScroll + LEVEL_BLOCK_SIZE;
+    debugCollVerts[1].z = 5;
+    sceGuColor(0xA0FF0000);
+    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, debugCollVerts);
+
+
+    sceGuEnable(GU_TEXTURE_2D);
+
     // Disable blending since it's not needed anymore.
     sceGuDisable(GU_BLEND);
+
 
     // Output the previous' frame level screen coordinates.
     // This is needed by in the game's render function to paint

@@ -43,7 +43,7 @@ static void loadScreenImage(LevelScreenHandle *handle, LevelScreenLoadingType lo
         return;
     }
     char file[64];
-    sprintf(file, "host0://assets/screens/midground/%u.qoi", handle->index + 1);
+    sprintf(file, "assets/screens/midground/%u.qoi", handle->index + 1);
     switch (loadType) {
         case LOAD_LAZY:
             lazySwapTextureRam(file, handle->texture);
@@ -57,7 +57,7 @@ static void loadScreenImage(LevelScreenHandle *handle, LevelScreenLoadingType lo
 void loadLevel(unsigned int startScreen) {
     // Load the level data.
     unsigned int size;
-    void *buffer = readFile("host0://assets/level.bin", &size);
+    void *buffer = readFile("assets/level.bin", &size);
     level.totalScreens = size / sizeof(LevelScreen);
     level.screens = malloc(size);
     memcpy(level.screens, buffer, size);

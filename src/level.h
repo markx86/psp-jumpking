@@ -15,13 +15,15 @@
 #define LEVEL_BLOCK_ISSOLID(b) (!(b == BLOCK_EMPTY || b == BLOCK_FAKE || b == BLOCK_NOWIND))
 #define LEVEL_BLOCK_ISSLOPE(b) (b == BLOCK_SLOPE_TL || b == BLOCK_SLOPE_TR || b == BLOCK_SLOPE_BL || b == BLOCK_SLOPE_BR)
 
+#define LEVEL_SLOPE_DIRECTION(s) ((s % 2) ? 1 : -1);
+
 typedef enum {
-    BLOCK_EMPTY,
-    BLOCK_SOLID,
     BLOCK_SLOPE_TL,
     BLOCK_SLOPE_TR,
     BLOCK_SLOPE_BL,
     BLOCK_SLOPE_BR,
+    BLOCK_EMPTY,
+    BLOCK_SOLID,
     BLOCK_FAKE,
     BLOCK_ICE,
     BLOCK_SNOW,
