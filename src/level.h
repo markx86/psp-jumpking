@@ -3,14 +3,17 @@
 
 #include "alloc.h"
 
+#define LEVEL_COORDS_SCREEN2MAP(c) (c >> 3)
+#define LEVEL_COORDS_MAP2SCREEN(c) (c << 3)
+
 #define LEVEL_BLOCK_SIZE 8
 #define LEVEL_BLOCK_HALF (LEVEL_BLOCK_SIZE / 2)
 
-#define LEVEL_SCREEN_WIDTH 60
-#define LEVEL_SCREEN_HEIGHT 45
+#define LEVEL_SCREEN_BLOCK_WIDTH 60
+#define LEVEL_SCREEN_BLOCK_HEIGHT 45
 
-#define LEVEL_SCREEN_PXWIDTH (LEVEL_SCREEN_WIDTH * LEVEL_BLOCK_SIZE)
-#define LEVEL_SCREEN_PXHEIGHT (LEVEL_SCREEN_HEIGHT * LEVEL_BLOCK_SIZE)
+#define LEVEL_SCREEN_WIDTH LEVEL_COORDS_MAP2SCREEN(LEVEL_SCREEN_BLOCK_WIDTH)
+#define LEVEL_SCREEN_HEIGHT LEVEL_COORDS_MAP2SCREEN(LEVEL_SCREEN_BLOCK_HEIGHT)
 
 #define LEVEL_BLOCK_ISSOLID(b) (!(b == BLOCK_EMPTY || b == BLOCK_FAKE || b == BLOCK_NOWIND))
 #define LEVEL_BLOCK_ISSLOPE(b) (b == BLOCK_SLOPE_TL || b == BLOCK_SLOPE_TR || b == BLOCK_SLOPE_BL || b == BLOCK_SLOPE_BR)
@@ -37,7 +40,7 @@ typedef struct {
     unsigned short magic;
     unsigned char wind;
     unsigned char teleportIndex;
-    unsigned char blocks[LEVEL_SCREEN_HEIGHT][LEVEL_SCREEN_WIDTH];
+    unsigned char blocks[LEVEL_SCREEN_BLOCK_HEIGHT][LEVEL_SCREEN_BLOCK_WIDTH];
 } __attribute__((packed)) LevelScreen;
 
 void loadLevel(unsigned int startScreen);

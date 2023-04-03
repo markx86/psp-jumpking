@@ -2,18 +2,13 @@
 #include "state.h"
 #include <string.h>
 
-//#define PLAYER_HITBOX_WIDTH 18
-//#define PLAYER_HITBOX_HEIGHT 26
-
-#define PLAYER_HITBOX_WIDTH 24
-#define PLAYER_HITBOX_HEIGHT 32
-
+// Hitbox sizes
+#define PLAYER_HITBOX_WIDTH 18
+#define PLAYER_HITBOX_HEIGHT 26
 #define PLAYER_HITBOX_HALFW (PLAYER_HITBOX_WIDTH / 2)
 #define PLAYER_HITBOX_HALFH (PLAYER_HITBOX_HEIGHT / 2)
-
-#define PLAYER_HITBOX_BLOCK_WIDTH (PLAYER_HITBOX_WIDTH / LEVEL_BLOCK_SIZE)
-#define PLAYER_HITBOX_BLOCK_HEIGHT (PLAYER_HITBOX_HEIGHT / LEVEL_BLOCK_SIZE)
-
+#define PLAYER_HITBOX_BLOCK_WIDTH LEVEL_COORDS_SCREEN2MAP(PLAYER_HITBOX_WIDTH)
+#define PLAYER_HITBOX_BLOCK_HEIGHT LEVEL_COORDS_SCREEN2MAP(PLAYER_HITBOX_HEIGHT)
 #define PLAYER_HITBOX_BLOCK_HALFW (PLAYER_HITBOX_BLOCK_WIDTH / 2)
 #define PLAYER_HITBOX_BLOCK_HALFH (PLAYER_HITBOX_BLOCK_HEIGHT / 2)
 
@@ -21,15 +16,11 @@
 #define PLAYER_UPDATE_DELTA (1.0f / 60.0f)
 #define PLAYER_JUMP_HEIGHT 153.0f
 #define PLAYER_JUMP_VSPEED 9.0f
-//#define PLAYER_JUMP_VSPEED 525.0f
 #define PLAYER_JUMP_HSPEED 3.5f
-//#define PLAYER_JUMP_HSPEED 210.0f
 #define PLAYER_WALK_SPEED 1.5f
-//#define PLAYER_WALK_SPEED 90.0f
 #define PLAYER_WALL_BOUNCE 0.45f
 #define PLAYER_GRAVITY 0.275f
 #define PLAYER_MAX_FALL_SPEED 10.0f
-//#define PLAYER_MAX_FALL_SPEED 1200.0f
 
 // Status constants
 #define PLAYER_CHARGE_TIME 0.6f
@@ -132,25 +123,25 @@ static float slopeNormals[4][2] = {
 
 static short checkCollision(short sx, short sy, LevelScreen* screen, CollisionInfo* info) {
     short collisions = 0;
-    short padX = velocityX > 0.0f;
-    short padY = velocityY < 0.0f;
+    short positiveDirectionX = velocityX > 0.0f;
+    short positiveDirectionY = velocityY < 0.0f;
     sy -= PLAYER_HITBOX_HALFH;
-    short borderX = sx + ((padX) ? +PLAYER_HITBOX_HALFW : -PLAYER_HITBOX_HALFW);
-    short borderY = sy + ((padY) ? +PLAYER_HITBOX_HALFH : -PLAYER_HITBOX_HALFH);
-    info->tlSX = (padX) ? -1 : borderX;
-    info->tlSY = (padY) ? -1 : borderY;
-    info->brSX = (padX) ? borderX : -1;
-    info->brSY = (padY) ? borderY : -1;
+    short borderX = sx + ((positiveDirectionX) ? +PLAYER_HITBOX_HALFW : -PLAYER_HITBOX_HALFW);
+    short borderY = sy + ((positiveDirectionY) ? +PLAYER_HITBOX_HALFH : -PLAYER_HITBOX_HALFH);
+    info->tlSX = (positiveDirectionX) ? -1 : borderX;
+    info->tlSY = (positiveDirectionY) ? -1 : borderY;
+    info->brSX = (positiveDirectionX) ? borderX : -1;
+    info->brSY = (positiveDirectionY) ? borderY : -1;
     for (short oy = -PLAYER_HITBOX_HALFH; oy < PLAYER_HITBOX_HALFH; oy += LEVEL_BLOCK_SIZE) {
         for (short ox = -PLAYER_HITBOX_HALFW; ox < PLAYER_HITBOX_HALFW; ox += LEVEL_BLOCK_SIZE) {
             short cx = sx + ox;
             short cy = sy + oy;
-            short mx = cx / LEVEL_BLOCK_SIZE + padX;
-            short my = cy / LEVEL_BLOCK_SIZE + padY;
-            if (mx < 0 || mx >= LEVEL_SCREEN_WIDTH) {
+            short mx = LEVEL_COORDS_SCREEN2MAP(cx);
+            short my = LEVEL_COORDS_SCREEN2MAP(cy);
+            if (mx < 0 || mx >= LEVEL_SCREEN_BLOCK_WIDTH) {
                 continue;
             }
-            if (my < 0 || my >= LEVEL_SCREEN_HEIGHT) {
+            if (my < 0 || my >= LEVEL_SCREEN_BLOCK_HEIGHT) {
                 continue;
             }
             LevelScreenBlock block = screen->blocks[my][mx];
@@ -159,18 +150,16 @@ static short checkCollision(short sx, short sy, LevelScreen* screen, CollisionIn
                     ++collisions;
                     short csx = mx << 3;
                     short csy = my << 3;
-                    if (padX) {
+                    if (positiveDirectionX) {
                         info->tlSX = (info->tlSX < 0 || csx < info->tlSX) ? csx : info->tlSX;
                     } else {
                         info->brSX = (info->brSX < 0 || csx > info->brSX) ? csx + LEVEL_BLOCK_SIZE : info->brSX;
                     }
-                    if (padY) {
+                    if (positiveDirectionY) {
                         info->tlSY = (info->tlSY < 0 || csy < info->tlSY) ? csy : info->tlSY;
                     } else {
                         info->brSY = (info->brSY < 0 || csy > info->brSY) ? csy + LEVEL_BLOCK_SIZE : info->brSY;
                     }
-                    //info->brSX = (info->brSX < 0 || cx > info->brSX) ? cx : info->brSX;                    
-                    //info->brSY = (info->brSY < 0 || cy > info->brSY) ? cy : info->brSY;                    
                     info->block = block;
             }
         }
@@ -180,77 +169,39 @@ static short checkCollision(short sx, short sy, LevelScreen* screen, CollisionIn
     return collisions;
 }
 
-static short debugX = 0, debugY = 0;
-static short debugW = 0, debugH = 0;
-static short debugCX = 0, debugCY = 0;
-
 static void doCollision(float newX, float newY, LevelScreen *screen) {
     // Convert new player position to screen coordinates.
-    short newSX = ((short) newX) + (LEVEL_SCREEN_PXWIDTH / 2);
-    short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
+    short newSX = ((short) newX) + (LEVEL_SCREEN_WIDTH / 2);
+    short newSY = LEVEL_SCREEN_HEIGHT - ((short) newY);
     CollisionInfo info;
 
-    // If the player has collided with something...
+    // Check if the player has collided with something.
     short collisions = checkCollision(newSX, newSY, screen, &info);
     if (collisions) {
+        // If they have, check if the collision was along the X or the Y axis.
         short wasVerticalCollision;
         short isDiagonalCollision = info.width == info.height;
-        short absVX = (velocityX > 0.0f) ? velocityX : -velocityX;
-        short absVY = (velocityY > 0.0f) ? velocityY : -velocityY;
+        short absVX = (velocityX > 0.0f) ? velocityX : -velocityX; // |velocityX|
+        short absVY = (velocityY > 0.0f) ? velocityY : -velocityY; // |velocityY|
         if (info.width > info.height || (isDiagonalCollision && absVY >= absVX)) {
+            // A collision is vertical if the intersection rectangle
+            // is wider than it is tall. If the intersection is a square,
+            // the collision is considered vertical if the Y component of the
+            // velocity vector is greater (or equal) than its X component.
             wasVerticalCollision = 1;
             short vDir = (velocityY < 0.0f) ? +1 : -1;
             newSY -= vDir * info.height;
-            newY = (float)(LEVEL_SCREEN_PXHEIGHT - newSY);
-            //short collY = (vDir == +1) ? info.brSY : info.tlSY;
-            //while (collY >= 0 && collY < LEVEL_SCREEN_PXHEIGHT) {
-            //    short mapY = collY / LEVEL_BLOCK_SIZE;
-            //    short collisionsLeft = collisions;
-            //    for (int x = info.tlSX; x < info.brSX; x += LEVEL_BLOCK_SIZE) {
-            //        if (LEVEL_BLOCK_ISSOLID(screen->blocks[mapY][x / LEVEL_BLOCK_SIZE])) {
-            //            collY -= vDir;
-            //            newSY -= vDir;
-            //            break;
-            //        } else {
-            //            --collisionsLeft;
-            //        }
-            //    }
-            //    if (collisionsLeft == 0) {
-            //        newSY += vDir;
-            //        newY = (float)(LEVEL_SCREEN_PXHEIGHT - newSY);
-            //        break;
-            //    }
-            //}
+            newY = (float)(LEVEL_SCREEN_HEIGHT - newSY);
         } else if (info.width < info.height || (isDiagonalCollision && absVX > absVY)) {
+            // A collision is horizontal if the intersection rectangle
+            // is taller than it is wide. If the intersection is a square,
+            // the collision is considered horizontal if the X component 
+            // of the velocity vector is greater than its Y component.
             wasVerticalCollision = 0;
             short hDir = (velocityX > 0.0f) ? +1 : -1;
             newSX -= hDir * info.width;
-            newX = (float)(newSX - (short)(LEVEL_SCREEN_PXWIDTH / 2));
-            //short collX = (hDir == +1) ? info.brSX : info.tlSX;
-            //while (collX >= 0 && collX < LEVEL_SCREEN_PXWIDTH) {
-            //    short mapX = collX / LEVEL_BLOCK_SIZE;
-            //    short collisionsLeft = collisions;
-            //    for (int y = info.tlSY; y < info.brSY; y += LEVEL_BLOCK_SIZE) {
-            //        if (LEVEL_BLOCK_ISSOLID(screen->blocks[y / LEVEL_BLOCK_SIZE][mapX])) {
-            //            collX -= hDir;
-            //            newSX -= hDir;                
-            //            break;
-            //        } else {
-            //            --collisionsLeft;
-            //        }
-            //    }
-            //    if (collisionsLeft == 0) {
-            //        newSX += hDir;
-            //        newX = (float)(newSX - (short)(LEVEL_SCREEN_PXWIDTH / 2));
-            //        break;
-            //    }
-            //}
+            newX = (float)(newSX - (short)(LEVEL_SCREEN_WIDTH / 2));
         }
-        debugX = info.tlSX;
-        debugY = info.tlSY;
-        debugW = info.width;
-        debugH = info.height;
-        //panic("x1:%d y1:%d x2:%d y2:%d w:%d h:%d ", info.tlSX, info.tlSY, info.brSX, info.brSY, info.width, info.height);
 
         inAir = inAir && (!wasVerticalCollision || velocityY > 0.0f);
         isStunned = !info.isSlope && !inAir && fallTime > PLAYER_MAX_FALL_TIME;
@@ -287,8 +238,8 @@ void kingCreate(void) {
     velocityX = 0.0f;
     velocityY = 0.0f;
     // Update the player screen coordinates.
-    screenX = ((short) worldX) + (LEVEL_SCREEN_PXWIDTH / 2);
-    screenY = LEVEL_SCREEN_PXHEIGHT - ((short) worldY);
+    screenX = ((short) worldX) + (LEVEL_SCREEN_WIDTH / 2);
+    screenY = LEVEL_SCREEN_HEIGHT - ((short) worldY);
     // Reset input.
     direction = 0;
     jumpPressed = 0;
@@ -341,8 +292,8 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
             }
         } else {
             // Check if the player is standing on solid ground.
-            int mapX = screenX / LEVEL_BLOCK_SIZE;
-            int mapY = screenY / LEVEL_BLOCK_SIZE;
+            int mapX = LEVEL_COORDS_SCREEN2MAP(screenX);
+            int mapY = LEVEL_COORDS_SCREEN2MAP(screenY);
             for (int x = -PLAYER_HITBOX_BLOCK_HALFW; x <= PLAYER_HITBOX_BLOCK_HALFW; x++) {
                 LevelScreenBlock block = screen->blocks[mapY][mapX + x];
                 inAir |= LEVEL_BLOCK_ISSOLID(block) && !LEVEL_BLOCK_ISSLOPE(block);
@@ -351,14 +302,10 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
             
             if (inAir) {
                 // Update physics
-                {
-                    velocityX = direction * PLAYER_WALK_SPEED;
-                }
+                velocityX = direction * PLAYER_WALK_SPEED;
                 
                 // Update status
-                {
-                    fallTime = 0.0f;
-                }
+                fallTime = 0.0f;
             }
         }
     }
@@ -439,23 +386,23 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
 
     if (screenY - PLAYER_HITBOX_HALFH < 0) {
         // If the player has left the screen from the top side...
-        screenY += LEVEL_SCREEN_PXHEIGHT;
-        worldY -= LEVEL_SCREEN_PXHEIGHT;
+        screenY += LEVEL_SCREEN_HEIGHT;
+        worldY -= LEVEL_SCREEN_HEIGHT;
         *outScreenIndex += 1;
-    } else if (screenY - PLAYER_HITBOX_HALFH >= LEVEL_SCREEN_PXHEIGHT) {
+    } else if (screenY - PLAYER_HITBOX_HALFH >= LEVEL_SCREEN_HEIGHT) {
         // If the player has left the screen from the bottom side...
-        screenY -= LEVEL_SCREEN_PXHEIGHT;
-        worldY += LEVEL_SCREEN_PXHEIGHT;
+        screenY -= LEVEL_SCREEN_HEIGHT;
+        worldY += LEVEL_SCREEN_HEIGHT;
         *outScreenIndex -= 1;
     } else if (screenX < 0) {
         // If the player has left the screen from the left side...
-        screenX += LEVEL_SCREEN_PXWIDTH;
-        worldX += LEVEL_SCREEN_PXWIDTH;
+        screenX += LEVEL_SCREEN_WIDTH;
+        worldX += LEVEL_SCREEN_WIDTH;
         *outScreenIndex = screen->teleportIndex;
-    } else if (screenX > LEVEL_SCREEN_PXWIDTH) {
+    } else if (screenX > LEVEL_SCREEN_WIDTH) {
         // If the player has left the screen from the right side...
-        screenX -= LEVEL_SCREEN_PXWIDTH;
-        worldX -= LEVEL_SCREEN_PXWIDTH;
+        screenX -= LEVEL_SCREEN_WIDTH;
+        worldX -= LEVEL_SCREEN_WIDTH;
         *outScreenIndex = screen->teleportIndex;
     }
 
@@ -546,42 +493,6 @@ void kingRender(short *outSX, short *outSY, unsigned int currentScroll) {
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     // Draw it!
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
-
-    sceGuDisable(GU_TEXTURE_2D);
-
-    Vertex* hitboxVerts = sceGuGetMemory(2 * sizeof(Vertex));
-    hitboxVerts[0].x = screenX - PLAYER_HITBOX_HALFW;
-    hitboxVerts[0].y = screenY - currentScroll - PLAYER_HITBOX_HEIGHT;
-    hitboxVerts[0].z = 3;
-    hitboxVerts[1].x = screenX + PLAYER_HITBOX_HALFW;
-    hitboxVerts[1].y = screenY - currentScroll;
-    hitboxVerts[1].z = 3;
-    sceGuColor(0xA00000FF);
-    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, hitboxVerts);
-
-    Vertex* debugVerts = sceGuGetMemory(2 * sizeof(Vertex));
-    debugVerts[0].x = debugX;
-    debugVerts[0].y = debugY - currentScroll;
-    debugVerts[0].z = 4;
-    debugVerts[1].x = debugX + debugW;
-    debugVerts[1].y = debugY - currentScroll + debugH;
-    debugVerts[1].z = 4;
-    sceGuColor(0xA000FFFF);
-    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, debugVerts);
-
-    Vertex* debugCollVerts = sceGuGetMemory(2 * sizeof(Vertex));
-    debugCollVerts[0].x = debugCX;
-    debugCollVerts[0].y = debugCY - currentScroll;
-    debugCollVerts[0].z = 5;
-    debugCollVerts[1].x = debugCX + LEVEL_BLOCK_SIZE;
-    debugCollVerts[1].y = debugCY - currentScroll + LEVEL_BLOCK_SIZE;
-    debugCollVerts[1].z = 5;
-    sceGuColor(0xA0FF0000);
-    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, debugCollVerts);
-
-
-    sceGuEnable(GU_TEXTURE_2D);
-
     // Disable blending since it's not needed anymore.
     sceGuDisable(GU_BLEND);
 

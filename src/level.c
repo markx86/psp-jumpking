@@ -149,7 +149,7 @@ void renderLevelScreen(short scroll) {
     vertices[1].x = PSP_SCREEN_WIDTH;
     vertices[1].y = PSP_SCREEN_HEIGHT;
     vertices[1].z = 0;
-    vertices[1].u = LEVEL_SCREEN_PXWIDTH;
+    vertices[1].u = LEVEL_SCREEN_WIDTH;
     vertices[1].v = PSP_SCREEN_HEIGHT + scroll;
     
     sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
@@ -171,7 +171,7 @@ void renderLevelScreenLinesTop(short scroll, short lines) {
     vertices[1].x = PSP_SCREEN_WIDTH;
     vertices[1].y = lines;
     vertices[1].z = 1;
-    vertices[1].u = LEVEL_SCREEN_PXWIDTH;
+    vertices[1].u = LEVEL_SCREEN_WIDTH;
     vertices[1].v = scroll + lines;
 
     sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
@@ -198,7 +198,7 @@ void renderLevelScreenLinesBottom(short scroll, short lines) {
     vertices[1].x = PSP_SCREEN_WIDTH;
     vertices[1].y = offset + lines;
     vertices[1].z = 0;
-    vertices[1].u = LEVEL_SCREEN_PXWIDTH;
+    vertices[1].u = LEVEL_SCREEN_WIDTH;
     vertices[1].v = offset + scroll + lines;
 
     sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
@@ -215,15 +215,15 @@ void forceCleanLevelArtifactAt(short x, short y, short width, short height) {
     // Clamp x coordinate within the screen bounds.
     if (x < 0) {
         x = 0;
-    } else if (x + width >= LEVEL_SCREEN_PXWIDTH) {
-        x = LEVEL_SCREEN_PXWIDTH - width;
+    } else if (x + width >= LEVEL_SCREEN_WIDTH) {
+        x = LEVEL_SCREEN_WIDTH - width;
     }
 
     // Clamp y coordinate within the screen bounds.
     if (y < 0) {
         y = 0;
-    } else if (y + height >= LEVEL_SCREEN_PXHEIGHT) {
-        y = LEVEL_SCREEN_PXHEIGHT - height;
+    } else if (y + height >= LEVEL_SCREEN_HEIGHT) {
+        y = LEVEL_SCREEN_HEIGHT - height;
     }
     
     queueDisplayBufferUpdate(x, y, width, height);
@@ -233,15 +233,15 @@ void renderLevelScreenSection(short x, short y, short width, short height, unsig
     // Clamp x coordinate within the screen bounds.
     if (x < 0) {
         x = 0;
-    } else if (x + width >= LEVEL_SCREEN_PXWIDTH) {
-        x = LEVEL_SCREEN_PXWIDTH - width;
+    } else if (x + width >= LEVEL_SCREEN_WIDTH) {
+        x = LEVEL_SCREEN_WIDTH - width;
     }
 
     // Clamp y coordinate within the screen bounds.
     if (y < 0) {
         y = 0;
-    } else if (y + height >= LEVEL_SCREEN_PXHEIGHT) {
-        y = LEVEL_SCREEN_PXHEIGHT - height;
+    } else if (y + height >= LEVEL_SCREEN_HEIGHT) {
+        y = LEVEL_SCREEN_HEIGHT - height;
     }
     
     Vertex *vertices = sceGuGetMemory(2 * sizeof(Vertex));
