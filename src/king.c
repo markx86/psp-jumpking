@@ -83,11 +83,11 @@ typedef struct {
     // the block the player has collided with
     LevelScreenBlock block;
     // the map coordinates of the collision (relative to the top-left corner of the block)
-    short mapX, mapY;
+    short brSX, brSY;
     // the screen coordinates of the collision (relative to the top-left corner of the block)
-    short screenX, screenY;
+    short tlSX, tlSY;
     // the coordinates of the collision relative to the player sprite center's screen coordinates
-    short offsetX, offsetY;
+    short width, height;
 } CollisionInfo;
 
 // Coordinates
@@ -131,10 +131,16 @@ static float slopeNormals[4][2] = {
 };
 
 static short checkCollision(short sx, short sy, LevelScreen* screen, CollisionInfo* info) {
-    short minDist2 = -1;
+    short collisions = 0;
     short padX = velocityX > 0.0f;
     short padY = velocityY < 0.0f;
     sy -= PLAYER_HITBOX_HALFH;
+    short borderX = sx + ((padX) ? +PLAYER_HITBOX_HALFW : -PLAYER_HITBOX_HALFW);
+    short borderY = sy + ((padY) ? +PLAYER_HITBOX_HALFH : -PLAYER_HITBOX_HALFH);
+    info->tlSX = (padX) ? -1 : borderX;
+    info->tlSY = (padY) ? -1 : borderY;
+    info->brSX = (padX) ? borderX : -1;
+    info->brSY = (padY) ? borderY : -1;
     for (short oy = -PLAYER_HITBOX_HALFH; oy < PLAYER_HITBOX_HALFH; oy += LEVEL_BLOCK_SIZE) {
         for (short ox = -PLAYER_HITBOX_HALFW; ox < PLAYER_HITBOX_HALFW; ox += LEVEL_BLOCK_SIZE) {
             short cx = sx + ox;
@@ -150,26 +156,33 @@ static short checkCollision(short sx, short sy, LevelScreen* screen, CollisionIn
             LevelScreenBlock block = screen->blocks[my][mx];
             info->modifiers |= blockCollisionData[block];
             if (LEVEL_BLOCK_ISSOLID(block)) {
-                short dist2 = ox * ox + oy * oy;
-                if (minDist2 < 0 || dist2 <= minDist2) {
-                    minDist2 = dist2;
-                    info->screenX = cx;
-                    info->screenY = cy;
-                    info->mapX = mx;
-                    info->mapY = my;
-                    info->offsetX = ox;
-                    info->offsetY = oy;
+                    ++collisions;
+                    short csx = mx << 3;
+                    short csy = my << 3;
+                    if (padX) {
+                        info->tlSX = (info->tlSX < 0 || csx < info->tlSX) ? csx : info->tlSX;
+                    } else {
+                        info->brSX = (info->brSX < 0 || csx > info->brSX) ? csx + LEVEL_BLOCK_SIZE : info->brSX;
+                    }
+                    if (padY) {
+                        info->tlSY = (info->tlSY < 0 || csy < info->tlSY) ? csy : info->tlSY;
+                    } else {
+                        info->brSY = (info->brSY < 0 || csy > info->brSY) ? csy + LEVEL_BLOCK_SIZE : info->brSY;
+                    }
+                    //info->brSX = (info->brSX < 0 || cx > info->brSX) ? cx : info->brSX;                    
+                    //info->brSY = (info->brSY < 0 || cy > info->brSY) ? cy : info->brSY;                    
                     info->block = block;
-                }
             }
         }
     }
-    return minDist2 >= 0;
+    info->width = info->brSX - info->tlSX;
+    info->height = info->brSY - info->tlSY;
+    return collisions;
 }
 
 static short debugX = 0, debugY = 0;
+static short debugW = 0, debugH = 0;
 static short debugCX = 0, debugCY = 0;
-static short prevHDir = 0, prevVDir = 0;
 
 static void doCollision(float newX, float newY, LevelScreen *screen) {
     // Convert new player position to screen coordinates.
@@ -177,55 +190,67 @@ static void doCollision(float newX, float newY, LevelScreen *screen) {
     short newSY = LEVEL_SCREEN_PXHEIGHT - ((short) newY);
     CollisionInfo info;
 
-    short xCheck = (velocityX != 0.0f);
-    short yCheck = (velocityY != 0.0f);
-    short hDir = (velocityX > 0.0f) ? +1 : -1;
-    short vDir = (velocityY < 0.0f) ? +1 : -1;
-
     // If the player has collided with something...
-    if (checkCollision(newSX, newSY, screen, &info)) {
-        short wasVerticalCollision = 0;
-        short collX = info.mapX;
-        short collY = info.mapY;
-        short invalidCollX = 0;
-        short invalidCollY = 0;
-        while (!invalidCollX || !invalidCollY) {
-            if (!xCheck || collX < 0 || collX >= LEVEL_SCREEN_PXWIDTH) {
-                invalidCollX = 1;
-            } else {
-                if (LEVEL_BLOCK_ISSOLID(screen->blocks[info.mapY][collX])) {
-                    collX -= hDir;
-                } else {
-                    wasVerticalCollision = 0;
-                    newSX += (collX * LEVEL_BLOCK_SIZE) - info.screenX;
-                    newX = (float)(newSX - (short)(LEVEL_SCREEN_PXWIDTH / 2));
-                    debugCX = collX << 3;
-                    debugCY = info.screenY;
-                    debugX = info.mapX << 3;
-                    debugY = info.screenY;
-                    break;
-                }
-            }
-            if (!yCheck || collY < 0 || collY >= LEVEL_SCREEN_PXHEIGHT) {
-                invalidCollY = 1;
-            } else {
-                if (LEVEL_BLOCK_ISSOLID(screen->blocks[collY][info.mapX])) {
-                    collY -= vDir;
-                } else {
-                    wasVerticalCollision = 1;
-                    newSY += (collY * LEVEL_BLOCK_SIZE) - info.screenY;
-                    newY = (float)(LEVEL_SCREEN_PXHEIGHT - newSY);
-                    debugCX = info.screenX;
-                    debugCY = collY << 3;
-                    debugX = info.screenX;
-                    debugY = info.mapY << 3;
-                    break;
-                }
-            }
+    short collisions = checkCollision(newSX, newSY, screen, &info);
+    if (collisions) {
+        short wasVerticalCollision;
+        short isDiagonalCollision = info.width == info.height;
+        short absVX = (velocityX > 0.0f) ? velocityX : -velocityX;
+        short absVY = (velocityY > 0.0f) ? velocityY : -velocityY;
+        if (info.width > info.height || (isDiagonalCollision && absVY >= absVX)) {
+            wasVerticalCollision = 1;
+            short vDir = (velocityY < 0.0f) ? +1 : -1;
+            newSY -= vDir * info.height;
+            newY = (float)(LEVEL_SCREEN_PXHEIGHT - newSY);
+            //short collY = (vDir == +1) ? info.brSY : info.tlSY;
+            //while (collY >= 0 && collY < LEVEL_SCREEN_PXHEIGHT) {
+            //    short mapY = collY / LEVEL_BLOCK_SIZE;
+            //    short collisionsLeft = collisions;
+            //    for (int x = info.tlSX; x < info.brSX; x += LEVEL_BLOCK_SIZE) {
+            //        if (LEVEL_BLOCK_ISSOLID(screen->blocks[mapY][x / LEVEL_BLOCK_SIZE])) {
+            //            collY -= vDir;
+            //            newSY -= vDir;
+            //            break;
+            //        } else {
+            //            --collisionsLeft;
+            //        }
+            //    }
+            //    if (collisionsLeft == 0) {
+            //        newSY += vDir;
+            //        newY = (float)(LEVEL_SCREEN_PXHEIGHT - newSY);
+            //        break;
+            //    }
+            //}
+        } else if (info.width < info.height || (isDiagonalCollision && absVX > absVY)) {
+            wasVerticalCollision = 0;
+            short hDir = (velocityX > 0.0f) ? +1 : -1;
+            newSX -= hDir * info.width;
+            newX = (float)(newSX - (short)(LEVEL_SCREEN_PXWIDTH / 2));
+            //short collX = (hDir == +1) ? info.brSX : info.tlSX;
+            //while (collX >= 0 && collX < LEVEL_SCREEN_PXWIDTH) {
+            //    short mapX = collX / LEVEL_BLOCK_SIZE;
+            //    short collisionsLeft = collisions;
+            //    for (int y = info.tlSY; y < info.brSY; y += LEVEL_BLOCK_SIZE) {
+            //        if (LEVEL_BLOCK_ISSOLID(screen->blocks[y / LEVEL_BLOCK_SIZE][mapX])) {
+            //            collX -= hDir;
+            //            newSX -= hDir;                
+            //            break;
+            //        } else {
+            //            --collisionsLeft;
+            //        }
+            //    }
+            //    if (collisionsLeft == 0) {
+            //        newSX += hDir;
+            //        newX = (float)(newSX - (short)(LEVEL_SCREEN_PXWIDTH / 2));
+            //        break;
+            //    }
+            //}
         }
-        if (invalidCollX && invalidCollY) {
-            return;
-        }
+        debugX = info.tlSX;
+        debugY = info.tlSY;
+        debugW = info.width;
+        debugH = info.height;
+        //panic("x1:%d y1:%d x2:%d y2:%d w:%d h:%d ", info.tlSX, info.tlSY, info.brSX, info.brSY, info.width, info.height);
 
         inAir = inAir && (!wasVerticalCollision || velocityY > 0.0f);
         isStunned = !info.isSlope && !inAir && fallTime > PLAYER_MAX_FALL_TIME;
@@ -256,8 +281,8 @@ static void doCollision(float newX, float newY, LevelScreen *screen) {
 void kingCreate(void) {
     allSprites = loadTextureVram("assets/king/base/regular.qoi", NULL, NULL);
     // Set the player starting position.
-    worldX = 13.0f * 8.0f;
-    worldY = 22.0f * 8.0f;
+    worldX = 0.0f;
+    worldY = 32.0f;
     // Set the player initial speed.
     velocityX = 0.0f;
     velocityY = 0.0f;
@@ -538,8 +563,8 @@ void kingRender(short *outSX, short *outSY, unsigned int currentScroll) {
     debugVerts[0].x = debugX;
     debugVerts[0].y = debugY - currentScroll;
     debugVerts[0].z = 4;
-    debugVerts[1].x = debugX + LEVEL_BLOCK_SIZE;
-    debugVerts[1].y = debugY - currentScroll + LEVEL_BLOCK_SIZE;
+    debugVerts[1].x = debugX + debugW;
+    debugVerts[1].y = debugY - currentScroll + debugH;
     debugVerts[1].z = 4;
     sceGuColor(0xA000FFFF);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, debugVerts);
