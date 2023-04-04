@@ -10,7 +10,6 @@
 void setClearFlags(int flags);
 void queueDisplayBufferUpdate(short x, short y, short w, short h);
 void setBackgroundScroll(short offset);
-void skipWaitForThisFrame(void);
 
 // Singletons.
 extern SceCtrlData __ctrlData;

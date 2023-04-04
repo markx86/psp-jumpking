@@ -27,7 +27,7 @@ static char displayList1[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
 static char displayList2[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
 static DisplayBufferUpdate dispBufferUpdates[8];
 static char *displayList[2] = { displayList1, displayList2 };
-static int running, clearFlags, waitForFrame, vBuffer;
+static int running, clearFlags, vBuffer;
 static int queuedDispBufferUpdates;
 static void *drawBuffer, *dispBuffer, *depthBuffer;
 
@@ -68,16 +68,12 @@ static void startFrame(void) {
 static void endFrame(void) {
     // Start rendering.
     sceGuFinish();
-    // Wait for render to finish.
-    if (waitForFrame) {
-        sceGuSync(GU_SYNC_WHAT_DONE, GU_SYNC_FINISH);
-    } else {
-        waitForFrame = 1;
-    }
     // Wait for the next V-blank interval.
     if (!sceDisplayIsVblank()) {
         sceDisplayWaitVblankStartCB();
     }
+    // Wait for the frame to finish rendering.
+    sceGuSync(GU_SYNC_WHAT_DONE, GU_SYNC_FINISH);
     // Swap the buffers.
     sceGuSwapBuffers();
     // Flip the buffer selector.
@@ -130,15 +126,9 @@ static void endGu(void) {
 }
 
 static void init(void) {
+    running = 1;
     // Set the default clear flags.
     clearFlags = GU_DEPTH_BUFFER_BIT | GU_COLOR_BUFFER_BIT;
-    // Set running state to 1.
-    running = 1;
-    // This flag is here to tell the CPU to wait for the frame
-    // to finish rendering before swapping the buffers.
-    // Doing this avoids tearing, but introduces lag if the
-    // frame takes too long to render.
-    waitForFrame = 1;
     // Set the current GE buffer selector.
     vBuffer = 0;
     // Initialize resource loader.

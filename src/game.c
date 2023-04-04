@@ -120,11 +120,6 @@ static void render(void) {
             // during the time the current screen has been shown. Remeber that
             // the lower the scroll value, the higher we are in the level screen.
             minScroll = currentScroll;
-            // Disable "VSync" for this frame. This has to be done
-            // to not lag the game. It causes some artifacting
-            // near the top of the screen, but it's better than
-            // having the game lag while the screen is scrolling.
-            skipWaitForThisFrame();            
         } else if (currentScroll > maxScroll) {
             // If we're scrolling downwards, render the lines at the bottom of the screen.
             renderLevelScreenLinesBottom(currentScroll, currentScroll - maxScroll);
@@ -132,9 +127,6 @@ static void render(void) {
             // during the time the current screen has been shown. Remeber that
             // the higher the scroll value, the lower we are in the level screen.
             maxScroll = currentScroll;
-            // Same as above, but the artifact are now at the
-            // bottom of the screen.
-            skipWaitForThisFrame();
         }
         // The minScroll and maxScroll values are used to remember how much of the
         // current screen we have already rendered. Once a line has been rendered,
