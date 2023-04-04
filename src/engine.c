@@ -23,11 +23,9 @@ typedef struct {
 SceCtrlData __ctrlData;
 SceCtrlLatch __latchData;
 
-static char displayList1[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
-static char displayList2[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
+static char displayList[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
 static DisplayBufferUpdate dispBufferUpdates[8];
-static char *displayList[2] = { displayList1, displayList2 };
-static int running, clearFlags, vBuffer;
+static int running, clearFlags;
 static int queuedDispBufferUpdates;
 static void *drawBuffer, *dispBuffer, *depthBuffer;
 
@@ -53,7 +51,7 @@ static int setupCallbacks(void) {
 }
 
 static void startFrame(void) {
-    sceGuStart(GU_DIRECT, displayList[vBuffer]);
+    sceGuStart(GU_DIRECT, displayList);
     sceGuClear(clearFlags);
 
     unsigned int *disp = vabsptr(dispBuffer);
@@ -76,8 +74,6 @@ static void endFrame(void) {
     sceGuSync(GU_SYNC_WHAT_DONE, GU_SYNC_FINISH);
     // Swap the buffers.
     sceGuSwapBuffers();
-    // Flip the buffer selector.
-    vBuffer = !vBuffer;
 }
 
 static void initGu(void) {
@@ -87,7 +83,7 @@ static void initGu(void) {
     depthBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, PSP_SCREEN_HEIGHT, GU_PSM_4444)));
     // Initialize the graphics utility.
     sceGuInit();
-    sceGuStart(GU_DIRECT, displayList[vBuffer]);
+    sceGuStart(GU_DIRECT, displayList);
     // Set up the buffers.
     sceGuDrawBuffer(GU_PSM_8888, drawBuffer, BUFFER_WIDTH);
     sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, dispBuffer, BUFFER_WIDTH);
@@ -129,8 +125,6 @@ static void init(void) {
     running = 1;
     // Set the default clear flags.
     clearFlags = GU_DEPTH_BUFFER_BIT | GU_COLOR_BUFFER_BIT;
-    // Set the current GE buffer selector.
-    vBuffer = 0;
     // Initialize resource loader.
     initLoader();
     // Set up the input mode.
