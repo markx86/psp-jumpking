@@ -33,16 +33,6 @@ static SceUID asyncCallbackId;
 static int queueEnd, queueStart;
 static LoaderLazyJob lazyJobs[LOADER_MAX_LAZYJOBS];
 
-static const char *filenameFromPath(const char *path) {
-    unsigned int lastSlashIndex = 0;
-    for (int i = 0; path[i] != '\0'; i++) {
-        if (path[i] == '/') {
-            lastSlashIndex = i;
-        }
-    }
-    return path + lastSlashIndex + 1;
-}
-
 static int loaderAsyncCallback(int arg1, int jobPtr, void *argp) {
 #define lazyLoaderPanic(msg, ...) panic("Error while lazy loading %s\n" msg, job->path, ##__VA_ARGS__)
     SceInt64 res;
