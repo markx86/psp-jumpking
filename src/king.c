@@ -26,6 +26,9 @@
 #define PLAYER_STUN_TIME 0.5f
 #define PLAYER_MAX_FALL_TIME 1.0f
 
+// Input constants
+#define PLAYER_JUMP_LENIENCY_FRAMES 4
+
 // Macros
 #define PLAYER_GET_SPRITE(idx) (allSprites + PLAYER_SPRITE_WIDTH * PLAYER_SPRITE_HEIGHT * 4 * (idx))
 
@@ -85,7 +88,7 @@ static float worldX, worldY;
 static float velocityX, velocityY;
 static short screenX, screenY;
 // Input
-static short direction, jumpPressed;
+static short direction, jumpPressed, leniencyFrames, leniencyDirection;
 // Flags
 static char inAir, hitWallMidair, maxJumpPowerReached, isStunned;
 // Status
@@ -205,6 +208,7 @@ static void doCollision(float newX, float newY, LevelScreen *screen) {
             newX = (float)(newSX - (short)(LEVEL_SCREEN_WIDTH / 2));
         }
 
+        // TODO: Better collision handling.
         inAir = inAir && (!wasVerticalCollision || velocityY > 0.0f);
         isStunned = !info.isSlope && !inAir && fallTime > PLAYER_MAX_FALL_TIME;
         stunTime = isStunned * PLAYER_STUN_TIME;
@@ -245,6 +249,8 @@ void kingCreate(void) {
     // Reset input.
     direction = 0;
     jumpPressed = 0;
+    leniencyFrames = 0;
+    leniencyDirection = 0;
     // Reset flags.
     inAir = 0;
     hitWallMidair = 0;
@@ -309,9 +315,14 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
         // Resolve input
         {
             // Check which direction the player wants to go.
-            short rightBias = (((Input.Buttons & PSP_CTRL_RIGHT) != 0) << 1) | ((Latch.uiBreak & PSP_CTRL_RIGHT) != 0);
-            short leftBias = (((Input.Buttons & PSP_CTRL_LEFT) != 0) << 1) | ((Latch.uiBreak & PSP_CTRL_LEFT) != 0);
-            direction = (leftBias > rightBias) ? -1 : (leftBias < rightBias) ? +1 : 0;
+            direction = (Input.Buttons & PSP_CTRL_LEFT) ? -1 : (Input.Buttons & PSP_CTRL_RIGHT) ? +1 : 0;
+            // Handle the leniency direction.
+            if (direction) {
+                leniencyFrames = PLAYER_JUMP_LENIENCY_FRAMES;
+                leniencyDirection = direction;
+            } else {
+                --leniencyFrames;
+            }
             // Check if the player is trying to jump.
             jumpPressed = (Input.Buttons & PSP_CTRL_CROSS);
         }
@@ -348,6 +359,14 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
                         // If the jump button was released...
                         // - set the vertical speed to the jump power that was built up
                         velocityY = jumpPower;
+                        // - check if the input direction is 0. If it is, check if the
+                        //   last non 0 direction was within the last two frames
+                        if (leniencyFrames > 0 && direction == 0) {
+                            // - if it was, override the player's direction
+                            direction = leniencyDirection;
+                        }
+                        // - set the horizontal speed to PLAYER_JUMP_HSPEED in the direction
+                        //   the player is facing
                         velocityX = direction * PLAYER_JUMP_HSPEED;
                     } else {
                         // Otherwise, walk at normal speed.
