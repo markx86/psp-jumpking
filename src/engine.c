@@ -184,28 +184,19 @@ void setBackgroundScroll(short offset) {
     sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, ((char *) dispBuffer) + bufferOffset, BUFFER_WIDTH);
 }
 
-void skipWaitForThisFrame(void) {
-    waitForFrame = 0;
-}
-
 int main(void) {
     init();
-    unsigned long thisFrameTime, lastFrameTime;
-    lastFrameTime = sceKernelLibcClock();
+    const float delta = 1.0f / sceDisplayGetFramePerSec();
     while (running) {
-        thisFrameTime = sceKernelLibcClock();
         // Poll input.
         sceCtrlReadBufferPositive(&__ctrlData, 1);
         sceCtrlReadLatch(&__latchData);
         // Update the current state.
-        float delta = (float) (thisFrameTime - lastFrameTime) / 1000000.0f;
         updateCurrentState(delta);
         // Render the current state.
         startFrame();
         renderCurrentState();
         endFrame();
-        // Update the frame time.
-        lastFrameTime = thisFrameTime;
     }
     cleanup();
     return 0;

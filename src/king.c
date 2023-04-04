@@ -13,7 +13,6 @@
 #define PLAYER_HITBOX_BLOCK_HALFH (PLAYER_HITBOX_BLOCK_HEIGHT / 2)
 
 // Physics constants
-#define PLAYER_UPDATE_DELTA (1.0f / 60.0f)
 #define PLAYER_JUMP_HEIGHT 153.0f
 #define PLAYER_JUMP_VSPEED 9.0f
 #define PLAYER_JUMP_HSPEED 3.5f
@@ -95,8 +94,6 @@ static float jumpPower, stunTime, fallTime;
 static short walkAnimCycle, spriteUOffset;
 static SpriteIndex currentSpriteIndex;
 static char *currentSprite, *allSprites;
-
-static float deltaU;
 
 static char blockCollisionData[] = {
     COLLMOD_SOLID | COLLMOD_SLOPE,
@@ -263,18 +260,9 @@ void kingCreate(void) {
     // Set the initial sprite.
     currentSpriteIndex = SPRITE_STUNNED;
     currentSprite = PLAYER_GET_SPRITE(currentSpriteIndex);
-    // Initialize the update delta time.
-    deltaU = 0.0f;
 }
 
 void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) {
-    // Fix the player update loop to 60 updates per second.
-    deltaU += delta;
-    if (deltaU < PLAYER_UPDATE_DELTA) {
-        return;
-    }
-    deltaU -= PLAYER_UPDATE_DELTA;
-
     // Update status
     {
         if (velocityY) {
@@ -293,7 +281,7 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
             } else if (fallTime < PLAYER_MAX_FALL_TIME) {
                 // If the player is falling (meaning the vertical velocity is negative),
                 // count up the fall time.
-                fallTime += PLAYER_UPDATE_DELTA;
+                fallTime += delta;
             }
         } else {
             // Check if the player is standing on solid ground.
@@ -332,7 +320,7 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
         {
             // Update stunned timer
             if (stunTime > 0) {
-                stunTime -= PLAYER_UPDATE_DELTA;
+                stunTime -= delta;
             }
 
             // Un-stun the player if input was recieved
@@ -344,7 +332,7 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
             // Check if the player is pressing the jump button
             // and, if true, build up jump power.
             if (!isStunned && jumpPressed) {
-                jumpPower += (PLAYER_JUMP_VSPEED / PLAYER_CHARGE_TIME) * PLAYER_UPDATE_DELTA;
+                jumpPower += (PLAYER_JUMP_VSPEED / PLAYER_CHARGE_TIME) * delta;
                 maxJumpPowerReached = jumpPower >= PLAYER_JUMP_VSPEED;
             }
         }
@@ -451,7 +439,6 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
                     break;
                 case 7:
                     newSpriteIndex = SPRITE_WALKING1;
-                default:
                     walkAnimCycle = 0;
                     break;
             }
