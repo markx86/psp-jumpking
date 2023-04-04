@@ -1,6 +1,7 @@
 [
     {
         "file": "king/base.png",
+        "swizzle": false,
         "tilemaps": [
             {
                 "name": "regular",
@@ -94,6 +95,237 @@
         "file": "screens/midground/11.png",
         "texture": {
             "name": "11",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/12.png",
+        "texture": {
+            "name": "12",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/13.png",
+        "texture": {
+            "name": "13",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/14.png",
+        "texture": {
+            "name": "14",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/15.png",
+        "texture": {
+            "name": "15",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/16.png",
+        "texture": {
+            "name": "16",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/17.png",
+        "texture": {
+            "name": "17",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/18.png",
+        "texture": {
+            "name": "18",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/19.png",
+        "texture": {
+            "name": "19",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/20.png",
+        "texture": {
+            "name": "20",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/21.png",
+        "texture": {
+            "name": "21",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/22.png",
+        "texture": {
+            "name": "22",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/23.png",
+        "texture": {
+            "name": "23",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/24.png",
+        "texture": {
+            "name": "24",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/25.png",
+        "texture": {
+            "name": "25",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/26.png",
+        "texture": {
+            "name": "26",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/27.png",
+        "texture": {
+            "name": "27",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/28.png",
+        "texture": {
+            "name": "28",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/29.png",
+        "texture": {
+            "name": "29",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/30.png",
+        "texture": {
+            "name": "30",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/31.png",
+        "texture": {
+            "name": "31",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/32.png",
+        "texture": {
+            "name": "32",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/33.png",
+        "texture": {
+            "name": "33",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/34.png",
+        "texture": {
+            "name": "34",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/35.png",
+        "texture": {
+            "name": "35",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/36.png",
+        "texture": {
+            "name": "36",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/37.png",
+        "texture": {
+            "name": "37",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/38.png",
+        "texture": {
+            "name": "38",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/39.png",
+        "texture": {
+            "name": "39",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/40.png",
+        "texture": {
+            "name": "40",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/41.png",
+        "texture": {
+            "name": "41",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/42.png",
+        "texture": {
+            "name": "42",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/43.png",
+        "texture": {
+            "name": "43",
+            "size": [480, 360]
+        }
+    },
+    {
+        "file": "screens/midground/44.png",
+        "texture": {
+            "name": "44",
             "size": [480, 360]
         }
     }
