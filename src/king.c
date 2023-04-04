@@ -75,11 +75,11 @@ typedef struct {
     };
     // the block the player has collided with
     LevelScreenBlock block;
-    // the map coordinates of the collision (relative to the top-left corner of the block)
-    short brSX, brSY;
-    // the screen coordinates of the collision (relative to the top-left corner of the block)
+    // screen coordinates of the intersection rectangle's top-left corner
     short tlSX, tlSY;
-    // the coordinates of the collision relative to the player sprite center's screen coordinates
+    // screen coordinates of the intersection rectangle's bottom-right corner
+    short brSX, brSY;
+    // width and height of the intersection rectangle
     short width, height;
 } CollisionInfo;
 
@@ -318,9 +318,11 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
             direction = (Input.Buttons & PSP_CTRL_LEFT) ? -1 : (Input.Buttons & PSP_CTRL_RIGHT) ? +1 : 0;
             // Handle the leniency direction.
             if (direction) {
+                // If the direction is non 0, reset the leniency time.
                 leniencyFrames = PLAYER_JUMP_LENIENCY_FRAMES;
                 leniencyDirection = direction;
             } else {
+                // Otherwise, count down the leniency time.
                 --leniencyFrames;
             }
             // Check if the player is trying to jump.
