@@ -152,7 +152,7 @@ void renderLevelScreen(short scroll) {
     vertices[1].u = LEVEL_SCREEN_WIDTH;
     vertices[1].v = PSP_SCREEN_HEIGHT + scroll;
     
-    sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
+    sceGuTexMode(GU_PSM_8888, 0, 0, GU_TRUE);
     sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
@@ -174,7 +174,7 @@ void renderLevelScreenLinesTop(short scroll, short lines) {
     vertices[1].u = LEVEL_SCREEN_WIDTH;
     vertices[1].v = scroll + lines;
 
-    sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
+    sceGuTexMode(GU_PSM_8888, 0, 0, GU_TRUE);
     sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
@@ -201,7 +201,7 @@ void renderLevelScreenLinesBottom(short scroll, short lines) {
     vertices[1].u = LEVEL_SCREEN_WIDTH;
     vertices[1].v = offset + scroll + lines;
 
-    sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
+    sceGuTexMode(GU_PSM_8888, 0, 0, GU_TRUE);
     sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
@@ -258,7 +258,7 @@ void renderLevelScreenSection(short x, short y, short width, short height, unsig
     vertices[1].y = (y - currentScroll) + height;
     vertices[1].z = 0;
     
-    sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
+    sceGuTexMode(GU_PSM_8888, 0, 0, GU_TRUE);
     sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture);
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGBA);
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);

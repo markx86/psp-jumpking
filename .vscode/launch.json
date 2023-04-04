@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["-i", "/media/data/Programming/PSPDev/psp-jumpking/scripts/converter/input-dir", "-o", "/media/data/Programming/PSPDev/psp-jumpking/assets/textures", "-d", "/media/data/Programming/PSPDev/psp-jumpking/scripts/converter/textures.json"],
+            "args": ["-i", "${workspaceFolder}/scripts/textures/input-dir", "-o", "${workspaceFolder}/assets/textures", "-d", "${workspaceFolder}/scripts/textures/textures.json"],
             "justMyCode": true
         }
     ]

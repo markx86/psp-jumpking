@@ -9,6 +9,33 @@ import numpy as np
 import math
 import qoi
 
+def swizzle(in_pixels, width, height):
+    bytes_width = width * 4
+    row_blocks = int(bytes_width / 16);
+    swizzled_pixels = [0 for _ in range(bytes_width * height)]
+    for j in range(height):
+        for i in range(bytes_width):
+            block_x = int(i / 16)
+            block_y = int(j / 8)
+            x = (i - block_x * 16)
+            y = (j - block_y * 8)
+            block_index = block_x + (block_y * row_blocks)
+            block_offset = block_index * 16 * 8;
+            swizzled_pixels[block_offset + x + y * 16] = in_pixels[i + j * bytes_width]
+    out_pixels = []
+    for j in range(height):
+        line = []
+        for i in range(width):
+            line_offset = j * bytes_width + i * 4
+            line.append([
+                swizzled_pixels[line_offset], 
+                swizzled_pixels[line_offset + 1], 
+                swizzled_pixels[line_offset + 2], 
+                swizzled_pixels[line_offset + 3]
+            ])
+        out_pixels.append(line)
+    return np.array(out_pixels, dtype=np.uint8)
+
 class Vector2:
     def __init__(self, x, y):
         self.x = x
@@ -116,8 +143,7 @@ class Tilemap:
         self._vertical_padding = json_data["vpad"]
         self._horizontal_padding = json_data["hpad"]
     
-    def _generate_image(self, tiles, top_left, bottom_right, output_folder):
-    #def _generate_image(self, tiles, output_folder):
+    def _generate_image(self, tiles, top_left, bottom_right, output_folder, should_swizzle):
         pixels = []
         new_size = Vector2(bottom_right.x - top_left.x - 1, bottom_right.y - top_left.y - 1)
         width2 = math.log2(new_size.x)
@@ -127,19 +153,15 @@ class Tilemap:
         if height2 - int(height2) > 0:
             new_size.y = int(pow(2, math.ceil(height2)))
         for tile in tiles:
-            #tile_pixels = tile.get_pixels()[top_left.y:bottom_right.y]
-            #for y in range(len(tile_pixels)):
-            #    tile_pixels[y] = tile_pixels[y][top_left.x:bottom_right.x]
-            #pixels.extend(tile_pixels)
             tile.crop_to(new_size)
             pixels.extend(tile.get_pixels())
-        #output_path = output_folder.joinpath(self._name + ".png")
         output_path = output_folder.joinpath(self._name + ".qoi")
         rgba = np.array(pixels, dtype=np.uint8)
-        #iio.imwrite(output_path, rgba, extension=".png")
+        if should_swizzle == True:
+            rgba = swizzle(rgba.flatten(), new_size.x, new_size.y)
         qoi.write(output_path, rgba)
 
-    def extract(self, image, output_folder):
+    def extract(self, image, output_folder, should_swizzle):
         tilestrip_images = []
         tiles_read = 0
         top_left = Vector2(self._tile_size.x, self._tile_size.y)
@@ -156,12 +178,14 @@ class Tilemap:
                 tilestrip_images.append(tile)
                 tiles_read += 1
                 if tiles_read == self._total_tiles:
-                    return self._generate_image(tilestrip_images, top_left, bottom_right, output_folder)
-                    #return self._generate_image(tilestrip_images, output_folder)
+                    return self._generate_image(tilestrip_images, top_left, bottom_right, output_folder, should_swizzle)
 
 class TextureFile:
     def __init__(self, json_data, input_folder):
         self._file = json_data["file"]
+        self._swizzle = True
+        if json_data.get("swizzle") is not None:
+            self._swizzle = json_data["swizzle"]
         self._path = pathlib.Path(input_folder).joinpath(self._file)
         self._tilemaps = []
         if json_data.get("texture") is not None:
@@ -185,7 +209,7 @@ class TextureFile:
         if not output_folder.exists():
             output_folder.mkdir(parents=True, exist_ok=True)
         for tilemap in self._tilemaps:
-            tilemap.extract(image, output_folder)
+            tilemap.extract(image, output_folder, self._swizzle)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
