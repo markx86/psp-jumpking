@@ -132,6 +132,7 @@ static short checkCollision(short sx, short sy, LevelScreen* screen, CollisionIn
     info->tlSY = (positiveDirectionY) ? -1 : borderY;
     info->brSX = (positiveDirectionX) ? borderX : -1;
     info->brSY = (positiveDirectionY) ? borderY : -1;
+    short minDist2 = -1;
     for (short oy = -PLAYER_HITBOX_HALFH; oy < PLAYER_HITBOX_HALFH; oy += LEVEL_BLOCK_SIZE) {
         for (short ox = -PLAYER_HITBOX_HALFW; ox < PLAYER_HITBOX_HALFW; ox += LEVEL_BLOCK_SIZE) {
             short cx = sx + ox;
@@ -160,7 +161,11 @@ static short checkCollision(short sx, short sy, LevelScreen* screen, CollisionIn
                     } else {
                         info->brSY = (info->brSY < 0 || csy > info->brSY) ? csy + LEVEL_BLOCK_SIZE : info->brSY;
                     }
-                    info->block = block;
+                    short dist2 = ox * ox + oy * oy;
+                    if (minDist2 < 0 || dist2 < minDist2) {
+                        minDist2 = dist2;
+                        info->block = block;
+                    }
             }
         }
     }
