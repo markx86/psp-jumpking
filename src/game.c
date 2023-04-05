@@ -74,6 +74,8 @@ static void update(float delta) {
 }
 
 static void render(void) {
+    Vertex *sectionVertices = NULL;
+
     if (frameCounter < 2) {
         // Render the entire screen for the two frames.
         // This has to be done twice, one time for each
@@ -131,10 +133,10 @@ static void render(void) {
         // The minScroll and maxScroll values are used to remember how much of the
         // current screen we have already rendered. Once a line has been rendered,
         // it stays in the draw buffer until we switch screens. 
-
+        
         // Paint over where the king was in the previous frame.
         // Add a 4 pixel padding to account for the error introduced by the fixed update loop.
-        renderLevelScreenSection(kingSX[vBuffer] - 8, kingSY[vBuffer] - 8, PLAYER_SPRITE_WIDTH + 16, PLAYER_SPRITE_HEIGHT + 16, currentScroll);
+        sectionVertices = renderLevelScreenSection(kingSX[vBuffer] - 2, kingSY[vBuffer] - 2, PLAYER_SPRITE_WIDTH + 4, PLAYER_SPRITE_HEIGHT + 4, currentScroll);
     }
 
     prevKingSX[vBuffer] = kingSX[vBuffer];
@@ -142,6 +144,10 @@ static void render(void) {
     
     // Render the player.
     kingRender(&kingSX[vBuffer], &kingSY[vBuffer], currentScroll);
+
+    // This has to be done after rendering the player, as the king's texture
+    // has to be in the color buffer for transparency to work properly.
+    renderForegroundOnTop(sectionVertices);
 
     // The last line flips the buffer selector.
     // This is done because the PSP is double buffered, meaning

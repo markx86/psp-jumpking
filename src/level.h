@@ -1,7 +1,7 @@
 #ifndef __LEVEL_H__
 #define __LEVEL_H__
 
-#include "alloc.h"
+#include "state.h"
 
 #define LEVEL_COORDS_SCREEN2MAP(c) (c >> 3)
 #define LEVEL_COORDS_MAP2SCREEN(c) (c << 3)
@@ -48,7 +48,8 @@ LevelScreen *getLevelScreen(unsigned int index);
 void renderLevelScreen(short scroll);
 void renderLevelScreenLinesTop(short scroll, short lines);
 void renderLevelScreenLinesBottom(short scroll, short lines);
-void renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll);
+Vertex *renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll);
+void renderForegroundOnTop(Vertex *sectionVertices);
 void forceCleanLevelArtifactAt(short x, short y, short width, short height);
 void unloadLevel(void);
 

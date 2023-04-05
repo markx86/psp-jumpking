@@ -1,6 +1,5 @@
 #include "level.h"
 #include "loader.h"
-#include "state.h"
 #include "panic.h"
 #include <pspgu.h>
 #include <stdio.h>
@@ -10,7 +9,7 @@
 
 #define LEVEL_SCREEN_IMAGEW 512
 #define LEVEL_SCREEN_IMAGEH 512
-#define LEVEL_SCREEN_BYTES (LEVEL_SCREEN_IMAGEW * LEVEL_SCREEN_IMAGEH * 4)
+#define LEVEL_SCREEN_BYTES (LEVEL_SCREEN_IMAGEW * (LEVEL_SCREEN_IMAGEH + LEVEL_SCREEN_WIDTH) * 4)
 
 typedef struct {
     unsigned short totalScreens;
@@ -18,7 +17,8 @@ typedef struct {
 } Level;
 
 typedef struct {
-    unsigned int index;
+    unsigned short index;
+    unsigned short hasForeground;
     char *texture;
 } LevelScreenHandle;
 
@@ -38,18 +38,25 @@ static LevelScreenHandle screenHandleCurrent;
 static LevelScreenHandle screenHandleNext;
 static __attribute__((section(".bss"), aligned(16))) char texturesPool[LEVEL_SCREEN_BYTES * 3];
 
+static void screenImageLoadedCallback(void *data, unsigned int width, unsigned int height) {
+    LevelScreenHandle *handle = (LevelScreenHandle *) data;
+    handle->hasForeground = height > LEVEL_SCREEN_HEIGHT;
+}
+
 static void loadScreenImage(LevelScreenHandle *handle, LevelScreenLoadingType loadType) {
     if (handle->index >= level.totalScreens) {
         return;
     }
     char file[64];
-    sprintf(file, "assets/screens/midground/%u.qoi", handle->index + 1);
+    sprintf(file, "assets/screens/%u.qoi", handle->index + 1);
+    unsigned int width, height;
     switch (loadType) {
         case LOAD_LAZY:
-            lazySwapTextureRam(file, handle->texture);
+            lazySwapTextureRam(file, handle->texture, &screenImageLoadedCallback, handle);
             break;
         case LOAD_NOW:
-            swapTextureRam(file, handle->texture);
+            swapTextureRam(file, handle->texture, &width, &height);
+            screenImageLoadedCallback(handle, width, height);
             break;
     }
 }
@@ -57,18 +64,15 @@ static void loadScreenImage(LevelScreenHandle *handle, LevelScreenLoadingType lo
 void loadLevel(unsigned int startScreen) {
     // Load the level data.
     unsigned int size;
-    void *buffer = readFile("assets/level.bin", &size);
+    level.screens = readFile("assets/level.bin", &size);
     level.totalScreens = size / sizeof(LevelScreen);
-    level.screens = malloc(size);
-    memcpy(level.screens, buffer, size);
-    unloadFile(buffer);
     // Initialize screen texture handles.
     screenHandlePrevious.index = startScreen - 1;
     screenHandlePrevious.texture = texturesPool;
     screenHandleCurrent.index = startScreen;
     screenHandleCurrent.texture = texturesPool + LEVEL_SCREEN_BYTES;
     screenHandleNext.index = startScreen + 1;
-    screenHandleNext.texture = texturesPool + LEVEL_SCREEN_BYTES * 2;
+    screenHandleNext.texture = texturesPool + (LEVEL_SCREEN_BYTES << 1);
     // Load the appropriate screen textures.
     lastScreenReturned = NULL;
     getLevelScreen(startScreen);
@@ -137,6 +141,27 @@ LevelScreen *getLevelScreen(unsigned int index) {
     return lastScreenReturned;
 }
 
+void renderForegroundOnTop(Vertex *vertices) {
+    if (!screenHandleCurrent.hasForeground || vertices == NULL) {
+        return;
+    }
+    // Update the vertices to be on the layer above the background.
+    vertices[0].z = 3;
+    vertices[1].z = 3;
+    // Enable blending to account for transparency.
+    sceGuEnable(GU_BLEND);
+    sceGuBlendFunc(GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
+    // Bind the foreground texture.
+    sceGuTexMode(GU_PSM_8888, 0, 0, GU_TRUE);
+    sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture + (LEVEL_SCREEN_IMAGEW * LEVEL_SCREEN_HEIGHT * 4));
+    sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGBA);
+    sceGuTexFilter(GU_NEAREST, GU_NEAREST);
+    // Draw the foreground.
+    sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
+    // Disable blending.
+    sceGuDisable(GU_BLEND);
+}
+
 void renderLevelScreen(short scroll) {
     Vertex *vertices = sceGuGetMemory(2 * sizeof(Vertex));
     
@@ -157,6 +182,8 @@ void renderLevelScreen(short scroll) {
     sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
+
+    renderForegroundOnTop(vertices);
 }
 
 void renderLevelScreenLinesTop(short scroll, short lines) {
@@ -180,6 +207,8 @@ void renderLevelScreenLinesTop(short scroll, short lines) {
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
     
+    renderForegroundOnTop(vertices);
+
     // Update the display buffer to avoid graphical glitches.
     queueDisplayBufferUpdate(0, scroll, PSP_SCREEN_WIDTH, lines);
 }
@@ -207,6 +236,8 @@ void renderLevelScreenLinesBottom(short scroll, short lines) {
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
 
+    renderForegroundOnTop(vertices);
+
     // Update the display buffer to avoid graphical glitches.
     queueDisplayBufferUpdate(0, offset + scroll, PSP_SCREEN_WIDTH, lines);
 }
@@ -229,7 +260,7 @@ void forceCleanLevelArtifactAt(short x, short y, short width, short height) {
     queueDisplayBufferUpdate(x, y, width, height);
 }
 
-void renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll) {
+Vertex *renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll) {
     // Clamp x coordinate within the screen bounds.
     if (x < 0) {
         x = 0;
@@ -260,12 +291,14 @@ void renderLevelScreenSection(short x, short y, short width, short height, unsig
     
     sceGuTexMode(GU_PSM_8888, 0, 0, GU_TRUE);
     sceGuTexImage(0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW, screenHandleCurrent.texture);
-    sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGBA);
+    sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGB);
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
+
+    return vertices;
 }
 
 void unloadLevel(void) {
-    free(level.screens);
+    unloadFile(level.screens);
     level.screens = NULL;
 }
