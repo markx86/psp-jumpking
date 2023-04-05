@@ -45,10 +45,10 @@ typedef struct {
 
 void loadLevel(unsigned int startScreen);
 LevelScreen *getLevelScreen(unsigned int index);
-void renderLevelScreen(short scroll);
+Vertex *renderLevelScreen(short scroll);
+Vertex *renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll);
 void renderLevelScreenLinesTop(short scroll, short lines);
 void renderLevelScreenLinesBottom(short scroll, short lines);
-Vertex *renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll);
 void renderForegroundOnTop(Vertex *sectionVertices);
 void forceCleanLevelArtifactAt(short x, short y, short width, short height);
 void unloadLevel(void);

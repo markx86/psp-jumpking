@@ -162,7 +162,7 @@ void renderForegroundOnTop(Vertex *vertices) {
     sceGuDisable(GU_BLEND);
 }
 
-void renderLevelScreen(short scroll) {
+Vertex *renderLevelScreen(short scroll) {
     Vertex *vertices = sceGuGetMemory(2 * sizeof(Vertex));
     
     vertices[0].x = 0;
@@ -183,7 +183,7 @@ void renderLevelScreen(short scroll) {
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
 
-    renderForegroundOnTop(vertices);
+    return vertices;
 }
 
 void renderLevelScreenLinesTop(short scroll, short lines) {
@@ -207,6 +207,9 @@ void renderLevelScreenLinesTop(short scroll, short lines) {
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
     
+    // We do not need to return vertices here as the player
+    // can never be in a position that would be affected by
+    // this draw call.
     renderForegroundOnTop(vertices);
 
     // Update the display buffer to avoid graphical glitches.
@@ -236,6 +239,9 @@ void renderLevelScreenLinesBottom(short scroll, short lines) {
     sceGuTexFilter(GU_NEAREST, GU_NEAREST);
     sceGuDrawArray(GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL, vertices);
 
+    // We do not need to return vertices here as the player
+    // can never be in a position that would be affected by
+    // this draw call.
     renderForegroundOnTop(vertices);
 
     // Update the display buffer to avoid graphical glitches.
