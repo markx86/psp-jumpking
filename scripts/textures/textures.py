@@ -162,6 +162,7 @@ class Tilemap:
         qoi.write(output_path, rgba)
 
     def extract(self, image, output_folder, should_swizzle):
+        print("  -> extracting {} {} from tilemap '{}' {} swizzle".format(self._total_tiles, "image" if self._total_tiles == 1 else "tiles", self._name, "with" if should_swizzle == True else "without"))
         tilestrip_images = []
         tiles_read = 0
         top_left = Vector2(self._tile_size.x, self._tile_size.y)
@@ -199,6 +200,7 @@ class TextureFile:
             self._is_texture = False
     
     def extract_all(self, output_path):
+        print("Extracting image(s) from '{}'".format(self._file))
         image = iio.imread(self._path, mode="RGBA")
         output_folder = pathlib.Path(output_path)
         if not self._is_texture:

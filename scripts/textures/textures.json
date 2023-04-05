@@ -64,13 +64,6 @@
         }
     },
     {
-        "file": "screens/midground/7.png",
-        "texture": {
-            "name": "7",
-            "size": [480, 360]
-        }
-    },
-    {
         "file": "screens/midground/8.png",
         "texture": {
             "name": "8",
@@ -319,13 +312,6 @@
         "file": "screens/midground/43.png",
         "texture": {
             "name": "43",
-            "size": [480, 360]
-        }
-    },
-    {
-        "file": "screens/midground/44.png",
-        "texture": {
-            "name": "44",
             "size": [480, 360]
         }
     }

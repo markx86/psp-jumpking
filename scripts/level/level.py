@@ -165,6 +165,7 @@ if __name__ == "__main__":
     with open(output_file, "wb") as file:
         for x in range(0, width, TILE_WIDTH):
             for y in range(0, height, TILE_HEIGHT):
+                print("Converting screen {}".format(str(int((int((x * height) / TILE_WIDTH) + y) / TILE_HEIGHT))))
                 screen = Screen(rgba, x, y)
                 bytes_arr = screen.to_bytearray()
                 file.write(bytes_arr)
