@@ -1,13 +1,14 @@
 [
     {
+        "type": "container",
         "file": "king/base.png",
         "swizzle": false,
         "tilemaps": [
             {
                 "name": "regular",
                 "offset": [224, 0],
-                "vpad": "top",
-                "hpad": "center",
+                "xpad": "center",
+                "ypad": "top",
                 "tileSize": [48,48],
                 "sizeInTiles": [4, 4],
                 "totalTiles": 13
@@ -15,6 +16,7 @@
         ]
     },
     {
+        "type": "single",
         "file": "screens/midground/1.png",
         "texture": {
             "name": "1",
@@ -22,6 +24,7 @@
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/2.png",
         "texture": {
             "name": "2",
@@ -29,6 +32,7 @@
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/3.png",
         "texture": {
             "name": "3",
@@ -36,27 +40,40 @@
         }
     },
     {
-        "file": "screens/midground/4.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/4.png",
+            "screens/background/bg4.png"
+        ],
         "texture": {
             "name": "4",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/5.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/5.png",
+            "screens/background/bg5.png"
+        ],
         "texture": {
             "name": "5",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/6.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/6.png",
+            "screens/background/bg6.png"
+        ],
         "texture": {
             "name": "6",
             "size": [480, 360]
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/7.png",
         "texture": {
             "name": "7",
@@ -64,6 +81,7 @@
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/8.png",
         "texture": {
             "name": "8",
@@ -71,6 +89,7 @@
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/9.png",
         "texture": {
             "name": "9",
@@ -78,6 +97,7 @@
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/10.png",
         "texture": {
             "name": "10",
@@ -85,6 +105,7 @@
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/11.png",
         "texture": {
             "name": "11",
@@ -92,6 +113,7 @@
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/12.png",
         "texture": {
             "name": "12",
@@ -99,6 +121,7 @@
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/13.png",
         "texture": {
             "name": "13",
@@ -106,139 +129,216 @@
         }
     },
     {
-        "file": "screens/midground/14.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/14.png",
+            "screens/background/bg14.png"
+        ],
         "texture": {
             "name": "14",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/15.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/15.png",
+            "screens/background/bg15.png"
+        ],
         "texture": {
             "name": "15",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/16.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/16.png",
+            "screens/background/bg16.png"
+        ],
         "texture": {
             "name": "16",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/17.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/17.png",
+            "screens/background/bg17.png"
+        ],
         "texture": {
             "name": "17",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/18.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/18.png",
+            "screens/background/bg18.png"
+        ],
         "texture": {
             "name": "18",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/19.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/19.png",
+            "screens/background/bg19.png"
+        ],
         "texture": {
             "name": "19",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/20.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/20.png",
+            "screens/background/bg20.png"
+        ],
         "texture": {
             "name": "20",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/21.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/21.png",
+            "screens/background/bg21.png"
+        ],
         "texture": {
             "name": "21",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/22.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/22.png",
+            "screens/background/bg22.png"
+        ],
         "texture": {
             "name": "22",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/23.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/23.png",
+            "screens/background/bg23.png"
+        ],
         "texture": {
             "name": "23",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/24.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/24.png",
+            "screens/background/bg24.png"
+        ],
         "texture": {
             "name": "24",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/25.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/25.png",
+            "screens/background/bg25.png"
+        ],
         "texture": {
             "name": "25",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/26.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/26.png",
+            "screens/background/bg26.png"
+        ],
         "texture": {
             "name": "26",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/27.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/27.png",
+            "screens/background/bg27.png"
+        ],
         "texture": {
             "name": "27",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/28.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/28.png",
+            "screens/background/bg28.png"
+        ],
         "texture": {
             "name": "28",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/29.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/29.png",
+            "screens/background/bg29.png"
+        ],
         "texture": {
             "name": "29",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/30.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/30.png",
+            "screens/background/bg30.png"
+        ],
         "texture": {
             "name": "30",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/31.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/31.png",
+            "screens/background/bg31.png"
+        ],
         "texture": {
             "name": "31",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/32.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/32.png",
+            "screens/background/bg32.png"
+        ],
         "texture": {
             "name": "32",
             "size": [480, 360]
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/33.png",
         "texture": {
             "name": "33",
@@ -246,6 +346,7 @@
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/34.png",
         "texture": {
             "name": "34",
@@ -253,6 +354,7 @@
         }
     },
     {
+        "type": "single",
         "file": "screens/midground/35.png",
         "texture": {
             "name": "35",
@@ -260,56 +362,88 @@
         }
     },
     {
-        "file": "screens/midground/36.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/36.png",
+            "screens/background/bg36.png"
+        ],
         "texture": {
             "name": "36",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/37.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/37.png",
+            "screens/background/bg37.png"
+        ],
         "texture": {
             "name": "37",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/38.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/38.png",
+            "screens/background/bg38.png"
+        ],
         "texture": {
             "name": "38",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/39.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/39.png",
+            "screens/background/bg39.png"
+        ],
         "texture": {
             "name": "39",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/40.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/40.png",
+            "screens/background/bg40.png"
+        ],
         "texture": {
             "name": "40",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/41.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/41.png",
+            "screens/background/bg41.png"
+        ],
         "texture": {
             "name": "41",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/42.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/42.png",
+            "screens/background/bg42.png"
+        ],
         "texture": {
             "name": "42",
             "size": [480, 360]
         }
     },
     {
-        "file": "screens/midground/43.png",
+        "type": "composite",
+        "files": [
+            "screens/midground/43.png",
+            "screens/background/bg43.png"
+        ],
         "texture": {
             "name": "43",
             "size": [480, 360]
