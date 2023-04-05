@@ -18,26 +18,28 @@ typedef enum {
     LAZYJOB_READ,
     LAZYJOB_CLOSE,
     LAZYJOB_DONE,
-} LoaderLazyJobStatus;
+} LazyJobStatus;
 
 typedef struct {
-    LoaderLazyJobStatus status;
+    LazyJobStatus status;
     char path[LOADER_MAX_PATH_LENGTH];
     void *dest;
     void *readBuffer;
+    LazyCallbackFn callback;
+    void* callbackData;
     unsigned int size;
     SceUID fd;
-} LoaderLazyJob;
+} LazyJob;
 
 static SceUID asyncCallbackId;
 static int queueEnd, queueStart;
-static LoaderLazyJob lazyJobs[LOADER_MAX_LAZYJOBS];
+static LazyJob lazyJobs[LOADER_MAX_LAZYJOBS];
 
 static int loaderAsyncCallback(int arg1, int jobPtr, void *argp) {
 #define lazyLoaderPanic(msg, ...) panic("Error while lazy loading %s\n" msg, job->path, ##__VA_ARGS__)
     SceInt64 res;
     QoiDescriptor desc;
-    LoaderLazyJob *job = (LoaderLazyJob *) jobPtr;
+    LazyJob *job = (LazyJob *) jobPtr;
     if (sceIoPollAsync(job->fd, &res) < 0) {
         lazyLoaderPanic("Could not poll fd %d", job->fd);
     }
@@ -66,6 +68,9 @@ static int loaderAsyncCallback(int arg1, int jobPtr, void *argp) {
             sceIoCloseAsync(job->fd);
             if (qoiDecode(job->readBuffer, job->size, &desc, job->dest)) {
                 lazyLoaderPanic("Failed to decode QOI");
+            }
+            if (job->callback != NULL) {
+                job->callback(job->callbackData, desc.width, desc.height);
             }
             job->status = LAZYJOB_DONE;
             break;
@@ -131,14 +136,16 @@ void *readFile(const char *path, unsigned int *outSize) {
 #undef readFilePanic
 }
 
-void lazySwapTextureRam(const char *path, void *dest) {
+void lazySwapTextureRam(const char *path, void *dest, LazyCallbackFn callback, void* callbackData) {
 #define swapTexturePanic(msg, ...) panic("Error while swapping texture %s\n" msg, path, ##__VA_ARGS__)
-    LoaderLazyJob *job = &lazyJobs[queueEnd];
+    LazyJob *job = &lazyJobs[queueEnd];
     while (job->status != LAZYJOB_IDLE) {
         sceKernelDelayThreadCB(1000);
     }
     strcpy(job->path, path);
     job->dest = dest;
+    job->callback = callback;
+    job->callbackData = callbackData;
     if (queueEnd == queueStart) {
         job->status = LAZYJOB_SEEK;
         job->fd = sceIoOpenAsync(job->path, PSP_O_RDONLY, 0444);
@@ -155,7 +162,7 @@ void lazySwapTextureRam(const char *path, void *dest) {
 #undef swapTexturePanic
 }
 
-void swapTextureRam(const char *path, void *dest) {
+void swapTextureRam(const char *path, void *dest, unsigned int* width, unsigned int* height) {
     unsigned int size;
     void *buffer = readFile(path, &size);
     QoiDescriptor desc;
@@ -163,6 +170,8 @@ void swapTextureRam(const char *path, void *dest) {
         panic("Error while swapping texture: %s\nFailed to decode QOI", path);
     }
     unloadFile(buffer);
+    *width = desc.width;
+    *height = desc.height;
 }
 
 void *loadTextureVram(const char *path, unsigned int *outWidth, unsigned int *outHeight) {

@@ -3,11 +3,13 @@
 
 #include <pspkerneltypes.h>
 
+typedef void (*LazyCallbackFn)(void *data, unsigned int width, unsigned int height);
+
 void initLoader(void);
 void endLoader(void);
 
-void lazySwapTextureRam(const char *path, void *dest);
-void swapTextureRam(const char *path, void *dest);
+void lazySwapTextureRam(const char *path, void *dest, LazyCallbackFn callback, void *callbackData);
+void swapTextureRam(const char *path, void *dest, unsigned int *width, unsigned int *height);
 
 void *readFile(const char *path, unsigned int *outSize);
 void unloadFile(void *buffer);
