@@ -10,23 +10,30 @@ import math
 import qoi
 
 def optional_key(json_data, key, default):
-    if json_data.get(key) is not None:
+    try:
         return json_data[key]
-    return default
+    except:
+        return default
 
 def require_key(json_data, key):
-    if json_data.get(key) is not None:
+    try:
         return json_data[key]
-    print("Cannot find key '{}' in json data".format(key))
-    exit(-1)
+    except:
+        print("Cannot find key '{}' in json data".format(key))
+        exit(-1)
 
 def check_key(json_data, key):
     return json_data.get(key) is not None
 
-def swizzle(in_pixels, width, height):
-    bytes_width = width * 4
+def swizzle(in_pixels):
+    in_shape = in_pixels.shape
+    width = in_shape[1]
+    height = in_shape[0]
+    bpp = in_shape[2]
+    bytes_width = width * bpp
     row_blocks = int(bytes_width / 16);
-    swizzled_pixels = [0 for _ in range(bytes_width * height)]
+    in_pixels = in_pixels.flatten()
+    swizzled_pixels = np.zeros(bytes_width * height, dtype=np.uint8)
     for j in range(height):
         for i in range(bytes_width):
             block_x = int(i / 16)
@@ -36,19 +43,34 @@ def swizzle(in_pixels, width, height):
             block_index = block_x + (block_y * row_blocks)
             block_offset = block_index * 16 * 8;
             swizzled_pixels[block_offset + x + y * 16] = in_pixels[i + j * bytes_width]
-    out_pixels = []
-    for j in range(height):
-        line = []
-        for i in range(width):
-            line_offset = j * bytes_width + i * 4
-            line.append([
-                swizzled_pixels[line_offset], 
-                swizzled_pixels[line_offset + 1], 
-                swizzled_pixels[line_offset + 2], 
-                swizzled_pixels[line_offset + 3]
-            ])
-        out_pixels.append(line)
-    return np.array(out_pixels, dtype=np.uint8)
+    return swizzled_pixels.reshape(in_shape)
+
+def to_po2_size(size):
+    width2 = math.log2(size.x)
+    height2 = math.log2(size.y)
+    if width2 - int(width2) > 0:
+        size.x = int(pow(2, math.ceil(width2)))
+    if height2 - int(height2) > 0:
+        size.y = int(pow(2, math.ceil(height2)))
+    return size
+
+def pad_arr(arr, shape):
+    for axis in range(len(shape)):
+        axis_pad = shape[axis]
+        if axis_pad == 0:
+            continue
+        elif axis_pad > 0:
+            axis_shape = [x for x in arr.shape]
+            axis_shape[axis] = abs(axis_pad)
+            pad = np.zeros(axis_shape, dtype=np.uint8)
+            arr = np.append(arr, pad, axis=axis)
+        else:
+            axis_pad = abs(axis_pad)
+            axis_shape = [x for x in arr.shape[axis+1:]]
+            axis_indices = [0 for _ in range(axis_pad)]
+            pad = np.zeros(axis_shape, dtype=np.uint8)
+            arr = np.insert(arr, axis_indices, pad, axis=axis)
+    return arr
 
 class Vector2:
     def __init__(self, x, y):
@@ -87,9 +109,11 @@ class Tile:
         if self._xpad == "center":
             horizontal_delta = round(horizontal_delta / 2)
         if self._xpad == "left" or self._xpad == "center":
-            self._pixels = np.insert(self._pixels, [0 for _ in range(horizontal_delta)], [0, 0, 0, 0], axis=1)
+            self._pixels = pad_arr(self._pixels, (0, -horizontal_delta))
+            #self._pixels = np.insert(self._pixels, [0 for _ in range(horizontal_delta)], [0, 0, 0, 0], axis=1)
         if self._xpad == "right" or self._xpad == "center":
-            self._pixels = np.append(self._pixels, [[[0, 0, 0, 0] for _ in range(horizontal_delta)] for _ in range(self._size.y)], axis=1)
+            self._pixels = pad_arr(self._pixels, (0, +horizontal_delta))
+            #self._pixels = np.append(self._pixels, [[[0, 0, 0, 0] for _ in range(horizontal_delta)] for _ in range(self._size.y)], axis=1)
     
     def _shrink_horizontally(self, horizontal_delta):
         if self._xpad == "center":
@@ -105,9 +129,11 @@ class Tile:
         if self._ypad == "center":
             vertical_delta = round(vertical_delta / 2)
         if self._ypad == "top" or self._ypad == "center":
-            self._pixels = np.insert(self._pixels, [0 for _ in range(vertical_delta)], [[0, 0, 0, 0] for _ in range(self._size.x)], axis=0)
+            self._pixels = pad_arr(self._pixels, (-vertical_delta, 0))
+            #self._pixels = np.insert(self._pixels, [0 for _ in range(vertical_delta)], [[0, 0, 0, 0] for _ in range(self._size.x)], axis=0)
         if self._ypad == "bottom" or self._ypad == "center":
-            self._pixels = np.append(self._pixels, [[[0, 0, 0, 0] for _ in range(self._size.x)] for _ in range(vertical_delta)], axis=0)
+            self._pixels = pad_arr(self._pixels, (+vertical_delta, 0))
+            #self._pixels = np.append(self._pixels, [[[0, 0, 0, 0] for _ in range(self._size.x)] for _ in range(vertical_delta)], axis=0)
 
     def _shrink_vertically(self, vertical_delta):
         if self._ypad == "center":
@@ -160,29 +186,19 @@ class Tilemap:
         self._horizontal_padding = require_key(json_data, "xpad")
         self._vertical_padding = require_key(json_data, "ypad")
     
-    def _generate_image(self, tiles, top_left, bottom_right, output_folder, should_swizzle):
+    def _generate_image(self, tiles, top_left, bottom_right):
         pixels = []
-        new_size = Vector2(bottom_right.x - top_left.x - 1, bottom_right.y - top_left.y - 1)
-        width2 = math.log2(new_size.x)
-        height2 = math.log2(new_size.y)
-        if width2 - int(width2) > 0:
-            new_size.x = int(pow(2, math.ceil(width2)))
-        if height2 - int(height2) > 0:
-            new_size.y = int(pow(2, math.ceil(height2)))
+        desired_size = Vector2(bottom_right.x - top_left.x - 1, bottom_right.y - top_left.y - 1)
+        new_size = to_po2_size(desired_size)
         for tile in tiles:
             tile.crop_to(new_size)
             pixels.extend(tile.get_pixels())
-        output_path = output_folder.joinpath(self._name + ".qoi")
         rgba = np.array(pixels, dtype=np.uint8)
-        if should_swizzle is True:
-            rgba = swizzle(rgba.flatten(), new_size.x, new_size.y)
-        qoi.write(output_path, rgba)
+        return rgba
 
-    def extract(self, image, output_folder, should_swizzle):
-        print("  -> extracting {} {} from tilemap '{}' {} swizzle".format(
-            self._total_tiles, 
-            "image" if self._total_tiles == 1 else "tiles", 
-            self._name, "with" if should_swizzle == True else "without"))
+    def extract(self, image):
+        print(" \-> extracting {} tiles from tilemap '{}'".format(
+            self._total_tiles, self._name))
         tilestrip_images = []
         tiles_read = 0
         top_left = Vector2(self._tile_size.x, self._tile_size.y)
@@ -199,67 +215,110 @@ class Tilemap:
                 tilestrip_images.append(tile)
                 tiles_read += 1
                 if tiles_read == self._total_tiles:
-                    return self._generate_image(tilestrip_images, top_left, bottom_right, output_folder, should_swizzle)
+                    return self._generate_image(tilestrip_images, top_left, bottom_right)
+    
+    def name(self):
+        return self._name
+
+class Screen:
+    def __init__(self, json_data):
+        self._number = require_key(json_data, "number")
+        self._size = require_key(json_data, "size")
+        self._swizzle = optional_key(json_data, "swizzle", True)
+    
+    def extract(self, background_image, foreground_image=None):
+        print(" \-> extracting screen #{} {} foreground".format(
+            self._number,
+            "without" if foreground_image is None else "with"
+        ))
+        width = background_image.shape[1]
+        height = background_image.shape[0]
+        if foreground_image is not None:
+            width = max(width, foreground_image.shape[1])
+            height = max(height, foreground_image.shape[0])
+        new_size = to_po2_size(Vector2(width, height))
+        x_delta = new_size.x - width
+        y_delta = new_size.y - height
+        background_image = pad_arr(background_image, (0, x_delta))
+        if foreground_image is not None:
+            foreground_image = pad_arr(foreground_image, (0, x_delta))
+            background_image = np.concatenate((background_image, foreground_image), axis=0)
+        rgba = pad_arr(background_image, (y_delta, 0))
+        if self._swizzle is True:
+            rgba = swizzle(rgba)
+        return rgba
+    
+    def number(self):
+        return str(self._number)
 
 class TextureFile:
     def __init__(self, json_data, input_folder):
-        self._type = optional_key(json_data, "type", "single")
-        self._files = require_key(json_data, "files") if self._type == "composite" else [require_key(json_data, "file")]
-        self._paths = [pathlib.Path(input_folder).joinpath(file) for file in self._files]
-        self._swizzle = optional_key(json_data, "swizzle", True)
-        self._tilemaps = []
-        if self._type == "single" or self._type == "composite":
-            texture_data = require_key(json_data, "texture")
-            tilemap = {
-                "name": texture_data["name"],
-                "offset": [0, 0],
-                "tileSize": texture_data["size"],
-                "sizeInTiles": [1, 1],
-                "totalTiles": 1,
-                "xpad": "right",
-                "ypad": "bottom"
-            }
-            self._tilemaps.append(Tilemap(tilemap))
-            self._is_texture = True
-        elif self._type == "container":
+        self._type = optional_key(json_data, "type", "screen")
+        if self._type == "screen":
+            self._background_files = require_key(json_data, "background")
+            self._foreground_file = optional_key(json_data, "foreground", None)
+            self._background_paths = [pathlib.Path(input_folder).joinpath(file) for file in self._background_files]
+            if self._foreground_file is not None:
+                self._foreground_path = pathlib.Path(input_folder).joinpath(self._foreground_file)
+            texture_data = require_key(json_data, "screen")
+            self._screen = Screen(texture_data)
+        elif self._type == "tilemap":
+            self._tilemaps = []
+            self._file = require_key(json_data, "file")
+            self._path = pathlib.Path(input_folder).joinpath(self._file)
             tilemaps = require_key(json_data, "tilemaps")
             for tilemap in tilemaps:
                 self._tilemaps.append(Tilemap(tilemap)) 
-            self._is_texture = False
         else:
-            print("Unknown texture type '{}'", self._type)
+            print("Unknown texture type '{}'".format(self._type))
             exit(-1)
     
-    def extract_all(self, output_path):
-        print("Extracting {} from file(s): {}".format(
-            "tilemaps" if self._type == "container" else self._type + " texture", 
-            self._files[0] if len(self._files) == 1 else "\n > " + "\n > ".join(self._files)))
-        if self._type == "composite":
-            image = np.copy(iio.imread(self._paths[0]))
-            for i in range(1, len(self._paths)):
-                composite_image = iio.imread(self._paths[i], mode="RGBA")
-                if composite_image.shape != image.shape:
-                    print("Incompatible image sizes:\n -> {} has size {} while {} has size {}".format(
-                        self._files[0], str(image.shape), self._files[i], str(composite_image.shape)))
-                    exit(-1)
-                for y in range(image.shape[0]):
-                    for x in range(image.shape[1]):
-                        pixel_color = image[y][x]
-                        if pixel_color[3] == 0:
-                            pixel_color = composite_image[y][x]
-                            image[y][x] = pixel_color
-        else:
-            image = iio.imread(self._paths[0], mode="RGBA")
+    def _extract_all_tilemaps(self, output_path):
+        print("Extracting tilemaps from file: {}".format(self._file))
         output_folder = pathlib.Path(output_path)
-        if not self._is_texture:
-            relative_output = self._files[0].split(".")[0]
-        else:
-            relative_output = os.path.split(self._files[0])[0]
+        relative_output = self._file.split(".")[0]
         output_folder = output_folder.joinpath(relative_output)
         if not output_folder.exists():
             output_folder.mkdir(parents=True, exist_ok=True)
+        image = iio.imread(self._path, mode="RGBA")
         for tilemap in self._tilemaps:
-            tilemap.extract(image, output_folder, self._swizzle)
+            output_path = output_folder.joinpath(tilemap.name() + ".qoi")
+            rgba = tilemap.extract(image)
+            qoi.write(output_path, rgba)
+
+    def _extract_screen(self, output_path):
+        print("Extracting screen from file(s): \n |> {}".format("\n |> ".join(self._background_files)))
+        background_image = np.copy(iio.imread(self._background_paths[0], mode="RGBA"))
+        for i in range(1, len(self._background_paths)):
+            composite_image = iio.imread(self._background_paths[i], mode="RGBA")
+            if composite_image.shape != background_image.shape:
+                print("Incompatible image sizes:\n {} has size {} while {} has size {}".format(
+                    self._background_files[0], str(background_image.shape), self._background_files[i], str(composite_image.shape)))
+                exit(-1)
+            for y in range(background_image.shape[0]):
+                for x in range(background_image.shape[1]):
+                    pixel_color = background_image[y][x]
+                    if pixel_color[3] == 0:
+                        pixel_color = composite_image[y][x]
+                        background_image[y][x] = pixel_color
+        if self._foreground_file is not None:
+            foreground_image = iio.imread(self._foreground_path, mode="RGBA")
+            rgba = self._screen.extract(background_image, foreground_image=foreground_image)
+        else:
+            rgba = self._screen.extract(background_image)
+        output_folder = pathlib.Path(output_path)
+        relative_output = self._background_files[0].split("/")[0]
+        output_folder = output_folder.joinpath(relative_output)
+        if not output_folder.exists():
+            output_folder.mkdir(parents=True, exist_ok=True)
+        output_path = output_folder.joinpath(self._screen.number() + ".qoi")
+        qoi.write(output_path, rgba)
+
+    def extract_all(self, output_path):
+        if self._type == "tilemap":
+            self._extract_all_tilemaps(output_path)
+        else:
+            self._extract_screen(output_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -284,7 +343,13 @@ if __name__ == "__main__":
         exit(-1)
 
     for texture_json in json_data:
-        files = [require_key(texture_json, "file")] if check_key(texture_json, "file") is True else require_key(texture_json, "files")
+        if check_key(texture_json, "file") is True:
+            files = [require_key(texture_json, "file")] 
+        else:
+            files = require_key(texture_json, "background")
+            foreground_file = optional_key(json_data, "foreground", None)
+            if foreground_file is not None:
+                files.append(foreground_file)
         for file in files:
             texture_path = pathlib.Path(input_folder).joinpath(file)
             if not texture_path.exists():
