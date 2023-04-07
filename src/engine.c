@@ -34,7 +34,7 @@ static int exitCallback(int arg1, int arg2, void *common) {
     return 0;
 }
 
-static int callbackThread(SceSize args, void *argp) {
+static int exitCallbackThread(SceSize args, void *argp) {
     int callbackId = sceKernelCreateCallback("ExitCallback", &exitCallback, NULL);
     sceKernelRegisterExitCallback(callbackId);
     sceKernelSleepThreadCB();
@@ -42,9 +42,9 @@ static int callbackThread(SceSize args, void *argp) {
 }
 
 static int setupCallbacks(void) {
-    int threadId = sceKernelCreateThread("CallbackThread", &callbackThread, 0x11, 0xFA0, 0, NULL);
-    if(threadId >= 0) {
-        sceKernelStartThread(threadId, 0, NULL);
+    int exitCallbackThreadId = sceKernelCreateThread("ExitCallbackThread", &exitCallbackThread, 0x11, 0xFA0, 0, NULL);
+    if(exitCallbackThreadId >= 0) {
+        sceKernelStartThread(exitCallbackThreadId, 0, NULL);
         return 1;
     }
     return 0;

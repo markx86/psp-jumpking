@@ -25,17 +25,17 @@ typedef struct {
     char path[LOADER_MAX_PATH_LENGTH];
     void *dest;
     void *readBuffer;
-    LazyCallbackFn callback;
+    LazyJobFinishCB finishCallback;
     void* callbackData;
     unsigned int size;
     SceUID fd;
 } LazyJob;
 
-static SceUID asyncCallbackId;
+static SceUID lazyIoCallbackId;
 static int queueEnd, queueStart;
 static LazyJob lazyJobs[LOADER_MAX_LAZYJOBS];
 
-static int loaderAsyncCallback(int arg1, int jobPtr, void *argp) {
+static int lazyIoCallback(int arg1, int jobPtr, void *argp) {
 #define lazyLoaderPanic(msg, ...) panic("Error while lazy loading %s\n" msg, job->path, ##__VA_ARGS__)
     SceInt64 res;
     QoiDescriptor desc;
@@ -69,8 +69,8 @@ static int loaderAsyncCallback(int arg1, int jobPtr, void *argp) {
             if (qoiDecode(job->readBuffer, job->size, &desc, job->dest)) {
                 lazyLoaderPanic("Failed to decode QOI");
             }
-            if (job->callback != NULL) {
-                job->callback(job->callbackData, desc.width, desc.height);
+            if (job->finishCallback != NULL) {
+                job->finishCallback(job->callbackData, desc.width, desc.height);
             }
             job->status = LAZYJOB_DONE;
             break;
@@ -89,7 +89,7 @@ static int loaderAsyncCallback(int arg1, int jobPtr, void *argp) {
                 if (job->fd < 0) {
                     lazyLoaderPanic("Could not open file");
                 }
-                sceIoSetAsyncCallback(job->fd, asyncCallbackId, job);
+                sceIoSetAsyncCallback(job->fd, lazyIoCallbackId, job);
             }
             break;
         
@@ -102,9 +102,9 @@ static int loaderAsyncCallback(int arg1, int jobPtr, void *argp) {
 }
 
 void initLoader(void) {
-    asyncCallbackId = sceKernelCreateCallback("LoaderAsyncCallback", &loaderAsyncCallback, NULL);
-    if (asyncCallbackId < 0) {
-        panic("Failed to create async loader callback.");
+    lazyIoCallbackId = sceKernelCreateCallback("LazyIoCallback", &lazyIoCallback, NULL);
+    if (lazyIoCallbackId < 0) {
+        panic("Failed to create lazy loader callback.");
     }
     memset(lazyJobs, 0, sizeof(lazyJobs));
     queueEnd = 0;
@@ -112,7 +112,7 @@ void initLoader(void) {
 }
 
 void endLoader(void) {
-    sceKernelDeleteCallback(asyncCallbackId);
+    sceKernelDeleteCallback(lazyIoCallbackId);
 }
 
 void *readFile(const char *path, unsigned int *outSize) {
@@ -136,7 +136,7 @@ void *readFile(const char *path, unsigned int *outSize) {
 #undef readFilePanic
 }
 
-void lazySwapTextureRam(const char *path, void *dest, LazyCallbackFn callback, void* callbackData) {
+void lazySwapTextureRam(const char *path, void *dest, LazyJobFinishCB callback, void* callbackData) {
 #define swapTexturePanic(msg, ...) panic("Error while swapping texture %s\n" msg, path, ##__VA_ARGS__)
     LazyJob *job = &lazyJobs[queueEnd];
     while (job->status != LAZYJOB_IDLE) {
@@ -144,7 +144,7 @@ void lazySwapTextureRam(const char *path, void *dest, LazyCallbackFn callback, v
     }
     strcpy(job->path, path);
     job->dest = dest;
-    job->callback = callback;
+    job->finishCallback = callback;
     job->callbackData = callbackData;
     if (queueEnd == queueStart) {
         job->status = LAZYJOB_SEEK;
@@ -152,14 +152,13 @@ void lazySwapTextureRam(const char *path, void *dest, LazyCallbackFn callback, v
         if (job->fd < 0) {
             swapTexturePanic("Could not open file");
         }
-        sceIoSetAsyncCallback(job->fd, asyncCallbackId, job);
+        sceIoSetAsyncCallback(job->fd, lazyIoCallbackId, job);
     } else {
         job->status = LAZYJOB_PENDING;
     }
     if (++queueEnd == LOADER_MAX_LAZYJOBS) {
         queueEnd = 0;
     }
-#undef swapTexturePanic
 }
 
 void swapTextureRam(const char *path, void *dest, unsigned int* width, unsigned int* height) {
@@ -167,11 +166,12 @@ void swapTextureRam(const char *path, void *dest, unsigned int* width, unsigned 
     void *buffer = readFile(path, &size);
     QoiDescriptor desc;
     if (qoiDecode(buffer, size, &desc, dest)) {
-        panic("Error while swapping texture: %s\nFailed to decode QOI", path);
+        swapTexturePanic("Failed to decode QOI", path);
     }
     unloadFile(buffer);
     *width = desc.width;
     *height = desc.height;
+#undef swapTexturePanic
 }
 
 void *loadTextureVram(const char *path, unsigned int *outWidth, unsigned int *outHeight) {
