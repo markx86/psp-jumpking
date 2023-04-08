@@ -239,11 +239,10 @@ class Screen:
         new_size = to_po2_size(Vector2(width, height))
         x_delta = new_size.x - width
         y_delta = new_size.y - height
-        background_image = pad_arr(background_image, (0, x_delta))
+        rgba = pad_arr(background_image, (0, x_delta))
         if foreground_image is not None:
             foreground_image = pad_arr(foreground_image, (0, x_delta))
-            background_image = np.concatenate((background_image, foreground_image), axis=0)
-        rgba = pad_arr(background_image, (y_delta, 0))
+            rgba = np.concatenate((rgba, foreground_image), axis=0)
         if self._swizzle is True:
             rgba = swizzle(rgba)
         return rgba
