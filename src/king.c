@@ -203,6 +203,9 @@ static void doCollision(float newX, float newY, LevelScreen *screen) {
             // the collision is considered horizontal if the X component 
             // of the velocity vector is greater than its Y component.
             wasVerticalCollision = 0;
+            if (info.width > LEVEL_BLOCK_SIZE) {
+                info.width = LEVEL_BLOCK_SIZE;
+            }
             short hDir = (velocityX > 0.0f) ? +1 : -1;
             newSX -= hDir * info.width;
             newX = (float)(newSX - (short)(LEVEL_SCREEN_WIDTH / 2));
