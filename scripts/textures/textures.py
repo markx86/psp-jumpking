@@ -25,6 +25,18 @@ def require_key(json_data, key):
 def check_key(json_data, key):
     return json_data.get(key) is not None
 
+def save_image(output_path, rgba):
+    shape = rgba.shape
+    rgba = rgba.flatten()
+    header = "JKI\0{:03d}\0{:03d}\0{}\0".format(shape[1], shape[0], shape[2])
+    header_bytes = bytearray(header, "ascii")
+    num_header_bytes = len(header_bytes)
+    num_bytes = rgba.shape[0]
+    for i in range(num_header_bytes):
+        rgba[num_bytes - num_header_bytes + i] = header_bytes[i]
+    with open(output_path, "wb") as file:
+        file.write(rgba)
+
 def swizzle(in_pixels):
     in_shape = in_pixels.shape
     width = in_shape[1]
@@ -130,10 +142,8 @@ class Tile:
             vertical_delta = round(vertical_delta / 2)
         if self._ypad == "top" or self._ypad == "center":
             self._pixels = pad_arr(self._pixels, (-vertical_delta, 0))
-            #self._pixels = np.insert(self._pixels, [0 for _ in range(vertical_delta)], [[0, 0, 0, 0] for _ in range(self._size.x)], axis=0)
         if self._ypad == "bottom" or self._ypad == "center":
             self._pixels = pad_arr(self._pixels, (+vertical_delta, 0))
-            #self._pixels = np.append(self._pixels, [[[0, 0, 0, 0] for _ in range(self._size.x)] for _ in range(vertical_delta)], axis=0)
 
     def _shrink_vertically(self, vertical_delta):
         if self._ypad == "center":
@@ -310,8 +320,8 @@ class TextureFile:
         output_folder = output_folder.joinpath(relative_output)
         if not output_folder.exists():
             output_folder.mkdir(parents=True, exist_ok=True)
-        output_path = output_folder.joinpath(self._screen.number() + ".qoi")
-        qoi.write(output_path, rgba)
+        output_path = output_folder.joinpath(self._screen.number() + ".jki")
+        save_image(output_path, rgba)
 
     def extract_all(self, output_path):
         if self._type == "tilemap":

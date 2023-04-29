@@ -1,6 +1,7 @@
 #include "loader.h"
 #include "alloc.h"
 #include "panic.h"
+#include "jki.h"
 #include "qoi.h"
 #include <pspuser.h>
 #include <pspdisplay.h>
@@ -24,7 +25,6 @@ typedef struct {
     LazyJobStatus status;
     char path[LOADER_MAX_PATH_LENGTH];
     void *dest;
-    void *readBuffer;
     LazyJobFinishCB finishCallback;
     void* callbackData;
     unsigned int size;
@@ -38,8 +38,8 @@ static LazyJob lazyJobs[LOADER_MAX_LAZYJOBS];
 static int lazyIoCallback(int arg1, int jobPtr, void *argp) {
 #define lazyLoaderPanic(msg, ...) panic("Error while lazy loading %s\n" msg, job->path, ##__VA_ARGS__)
     SceInt64 res;
-    QoiDescriptor desc;
     LazyJob *job = (LazyJob *) jobPtr;
+    unsigned int width, height;
     if (sceIoPollAsync(job->fd, &res) < 0) {
         lazyLoaderPanic("Could not poll fd %d", job->fd);
     }
@@ -56,8 +56,7 @@ static int lazyIoCallback(int arg1, int jobPtr, void *argp) {
             break;
         
         case LAZYJOB_READ:
-            job->readBuffer = malloc(job->size);
-            sceIoReadAsync(job->fd, job->readBuffer, job->size);
+            sceIoReadAsync(job->fd, job->dest, job->size);
             job->status = LAZYJOB_CLOSE;
             break;
         
@@ -66,17 +65,16 @@ static int lazyIoCallback(int arg1, int jobPtr, void *argp) {
                 lazyLoaderPanic("Read bytes mismatch: read %lu bytes out of %u", res, job->fd);
             }
             sceIoCloseAsync(job->fd);
-            if (qoiDecode(job->readBuffer, job->size, &desc, job->dest)) {
-                lazyLoaderPanic("Failed to decode QOI");
+            if (jkiGetInfo(job->dest, job->size, &width, &height, NULL)) {
+                lazyLoaderPanic("Invalid JKI header");
             }
             if (job->finishCallback != NULL) {
-                job->finishCallback(job->callbackData, desc.width, desc.height);
+                job->finishCallback(job->callbackData, width, height);
             }
             job->status = LAZYJOB_DONE;
             break;
         
         case LAZYJOB_DONE:
-            free(job->readBuffer);
             ++queueStart;
             if (queueStart == LOADER_MAX_LAZYJOBS) {
                 queueStart = 0;
@@ -164,13 +162,11 @@ void lazySwapTextureRam(const char *path, void *dest, LazyJobFinishCB callback, 
 void swapTextureRam(const char *path, void *dest, unsigned int* width, unsigned int* height) {
     unsigned int size;
     void *buffer = readFile(path, &size);
-    QoiDescriptor desc;
-    if (qoiDecode(buffer, size, &desc, dest)) {
-        swapTexturePanic("Failed to decode QOI", path);
+    memcpy(dest, buffer, size);
+    if (jkiGetInfo(dest, size, width, height, NULL)) {
+        swapTexturePanic("Invalid JKI header");
     }
     unloadFile(buffer);
-    *width = desc.width;
-    *height = desc.height;
 #undef swapTexturePanic
 }
 
