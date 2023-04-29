@@ -1,6 +1,7 @@
 #include "level.h"
 #include "loader.h"
 #include "panic.h"
+#include "jki.h"
 #include <pspgu.h>
 #include <stdio.h>
 #include <string.h>
@@ -9,7 +10,7 @@
 
 #define LEVEL_SCREEN_IMAGEW 512
 #define LEVEL_SCREEN_IMAGEH 512
-#define LEVEL_SCREEN_BYTES (LEVEL_SCREEN_IMAGEW * (LEVEL_SCREEN_IMAGEH + LEVEL_SCREEN_WIDTH) * 4)
+#define LEVEL_SCREEN_BYTES (LEVEL_SCREEN_IMAGEW * (LEVEL_SCREEN_HEIGHT + LEVEL_SCREEN_IMAGEH) * 4)
 
 typedef struct {
     unsigned short totalScreens;
@@ -36,7 +37,7 @@ static LevelScreen *lastScreenReturned;
 static LevelScreenHandle screenHandlePrevious;
 static LevelScreenHandle screenHandleCurrent;
 static LevelScreenHandle screenHandleNext;
-static __attribute__((section(".bss"), aligned(16))) char texturesPool[LEVEL_SCREEN_BYTES * 3];
+static __attribute__((section(".bss"), aligned(16))) char texturesPool[3][JKI_TAIL_SIZE + LEVEL_SCREEN_BYTES];
 
 static void screenImageLoadedCallback(void *data, unsigned int width, unsigned int height) {
     LevelScreenHandle *handle = (LevelScreenHandle *) data;
@@ -68,11 +69,11 @@ void loadLevel(unsigned int startScreen) {
     level.totalScreens = size / sizeof(LevelScreen);
     // Initialize screen texture handles.
     screenHandlePrevious.index = startScreen - 1;
-    screenHandlePrevious.texture = texturesPool;
+    screenHandlePrevious.texture = texturesPool[0];
     screenHandleCurrent.index = startScreen;
-    screenHandleCurrent.texture = texturesPool + LEVEL_SCREEN_BYTES;
+    screenHandleCurrent.texture = texturesPool[1];
     screenHandleNext.index = startScreen + 1;
-    screenHandleNext.texture = texturesPool + (LEVEL_SCREEN_BYTES << 1);
+    screenHandleNext.texture = texturesPool[2];
     // Load the appropriate screen textures.
     lastScreenReturned = NULL;
     getLevelScreen(startScreen);
@@ -100,6 +101,10 @@ LevelScreen *getLevelScreen(unsigned int index) {
                 screenHandlePrevious.index = screenHandleCurrent.index;
                 screenHandleCurrent.index = index;
                 screenHandleNext.index = index + 1;
+                // - shift each handle's hasForeground flag
+                screenHandlePrevious.hasForeground = screenHandleCurrent.hasForeground;
+                screenHandleCurrent.hasForeground = screenHandleNext.hasForeground;
+                screenHandleNext.hasForeground = 0;
                 // - swap the texture pointers
                 tmp = screenHandlePrevious.texture;
                 screenHandlePrevious.texture = screenHandleCurrent.texture;
@@ -113,6 +118,10 @@ LevelScreen *getLevelScreen(unsigned int index) {
                 screenHandleNext.index = screenHandleCurrent.index;
                 screenHandleCurrent.index = index;
                 screenHandlePrevious.index = index - 1;
+                // - shift each handle's hasForeground flag
+                screenHandleNext.hasForeground = screenHandleCurrent.hasForeground;
+                screenHandleCurrent.hasForeground = screenHandlePrevious.hasForeground;
+                screenHandlePrevious.hasForeground = 0;
                 // - swap the texture pointers
                 tmp = screenHandleNext.texture;
                 screenHandleNext.texture = screenHandleCurrent.texture;

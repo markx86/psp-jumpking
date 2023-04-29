@@ -2,18 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define JKI_HEADER_SIZE sizeof("JKI/000/000/0")
-#define JKI_MAGIC "JKI"
+#define JKI_MAGIC "JKIMG"
 
 typedef struct {
-    char magic[4];
+    char magic[sizeof(JKI_MAGIC)];
     char width[4];
     char height[4];
     char bpp[2];
-} __attribute__((packed)) JKIHeader;
+} __attribute__((packed)) JKITail;
 
 int jkiGetInfo(void *data, unsigned int size, unsigned int *outWidth, unsigned int *outHeight, unsigned int *outBpp) {
-    JKIHeader *header = (JKIHeader *) &((char *) data)[size - JKI_HEADER_SIZE];
+    JKITail *header = (JKITail *) &((char *) data)[size - JKI_TAIL_SIZE];
     if (strcmp(header->magic, JKI_MAGIC)) {
         return -1;
     }

@@ -28,14 +28,11 @@ def check_key(json_data, key):
 def save_image(output_path, rgba):
     shape = rgba.shape
     rgba = rgba.flatten()
-    header = "JKI\0{:03d}\0{:03d}\0{}\0".format(shape[1], shape[0], shape[2])
-    header_bytes = bytearray(header, "ascii")
-    num_header_bytes = len(header_bytes)
-    num_bytes = rgba.shape[0]
-    for i in range(num_header_bytes):
-        rgba[num_bytes - num_header_bytes + i] = header_bytes[i]
+    tail = "JKIMG\0{:03d}\0{:03d}\0{}\0".format(shape[1], shape[0], shape[2])
+    tail_bytes = bytearray(tail, "ascii")
     with open(output_path, "wb") as file:
         file.write(rgba)
+        file.write(tail_bytes)
 
 def swizzle(in_pixels):
     in_shape = in_pixels.shape
