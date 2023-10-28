@@ -49,7 +49,7 @@ static void loadScreenImage(LevelScreenHandle *handle, LevelScreenLoadingType lo
         return;
     }
     char file[64];
-    sprintf(file, "assets/screens/%u.jki", handle->index + 1);
+    sprintf(file, "assets/screens/%u.qoi", handle->index + 1);
     unsigned int width, height;
     switch (loadType) {
         case LOAD_LAZY:

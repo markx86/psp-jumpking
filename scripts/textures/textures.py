@@ -25,15 +25,6 @@ def require_key(json_data, key):
 def check_key(json_data, key):
     return json_data.get(key) is not None
 
-def save_image(output_path, rgba):
-    shape = rgba.shape
-    rgba = rgba.flatten()
-    tail = "JKIMG\0{:03d}\0{:03d}\0{}\0".format(shape[1], shape[0], shape[2])
-    tail_bytes = bytearray(tail, "ascii")
-    with open(output_path, "wb") as file:
-        file.write(rgba)
-        file.write(tail_bytes)
-
 def swizzle(in_pixels):
     in_shape = in_pixels.shape
     width = in_shape[1]
@@ -119,10 +110,8 @@ class Tile:
             horizontal_delta = round(horizontal_delta / 2)
         if self._xpad == "left" or self._xpad == "center":
             self._pixels = pad_arr(self._pixels, (0, -horizontal_delta))
-            #self._pixels = np.insert(self._pixels, [0 for _ in range(horizontal_delta)], [0, 0, 0, 0], axis=1)
         if self._xpad == "right" or self._xpad == "center":
             self._pixels = pad_arr(self._pixels, (0, +horizontal_delta))
-            #self._pixels = np.append(self._pixels, [[[0, 0, 0, 0] for _ in range(horizontal_delta)] for _ in range(self._size.y)], axis=1)
     
     def _shrink_horizontally(self, horizontal_delta):
         if self._xpad == "center":
@@ -317,8 +306,8 @@ class TextureFile:
         output_folder = output_folder.joinpath(relative_output)
         if not output_folder.exists():
             output_folder.mkdir(parents=True, exist_ok=True)
-        output_path = output_folder.joinpath(self._screen.number() + ".jki")
-        save_image(output_path, rgba)
+        output_path = output_folder.joinpath(self._screen.number() + ".qoi")
+        qoi.write(output_path, rgba)
 
     def extract_all(self, output_path):
         if self._type == "tilemap":

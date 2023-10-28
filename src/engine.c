@@ -135,7 +135,7 @@ static void init(void) {
     // Set up callbacks.
     setupCallbacks();
     // Set the initial game state.
-    switchState(&GAME);
+    switchState(&gameState);
 }
 
 static void cleanup(void) {

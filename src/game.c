@@ -167,7 +167,7 @@ static void cleanup(void) {
     unloadLevel();
 }
 
-const GameState GAME = {
+const GameState gameState = {
     .init = &init,
     .update = &update,
     .render = &render,

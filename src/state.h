@@ -17,15 +17,24 @@ typedef struct {
 #define Input __ctrlData
 #define Latch __latchData
 
-void switchState(const GameState *new);
-void renderCurrentState(void);
-void updateCurrentState(float delta);
-void cleanupCurrentState(void);
+extern const GameState *currentState;
+
+static inline void switchState(const GameState *new) {
+    if (currentState != NULL) {
+        currentState->cleanup();
+    }
+    currentState = new;
+    currentState->init();
+}
+
+#define renderCurrentState() currentState->render()
+#define updateCurrentState(delta) currentState->update(delta);
+#define cleanupCurrentState() currentState->cleanup();
 
 // Stuff needed for rendering.
 #define STATE_SCREEN_WIDTH 480
 #define STATE_SCREEN_HEIGHT 360
 
-extern const GameState GAME;
+extern const GameState gameState;
 
 #endif
