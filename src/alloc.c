@@ -1,7 +1,7 @@
 #include "alloc.h"
 #include <pspgu.h>
 
-unsigned int getVramMemorySize(unsigned int width, unsigned int height, unsigned int psm) {
+unsigned int get_vram_memory_size(unsigned int width, unsigned int height, unsigned int psm) {
     switch (psm) {
         case GU_PSM_T4:
             return (width * height) >> 1;

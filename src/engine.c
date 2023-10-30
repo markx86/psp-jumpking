@@ -18,56 +18,57 @@ PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER);
 typedef struct {
     short x, y;
     short width, height;
-} DisplayBufferUpdate;
+} disp_buffer_update_t;
 
-SceCtrlData __ctrlData;
-SceCtrlLatch __latchData;
+SceCtrlData _ctrl_data;
+SceCtrlLatch _latch_data;
+const game_state_t *_current_state = NULL;
 
-static char displayList[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
-static DisplayBufferUpdate dispBufferUpdates[8];
-static int running, clearFlags;
-static int queuedDispBufferUpdates;
-static void *drawBuffer, *dispBuffer, *depthBuffer;
+static char display_list[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
+static disp_buffer_update_t disp_buffer_updates[8];
+static int running, clear_flags;
+static int queued_disp_buffer_updates;
+static void *draw_buffer, *disp_buffer, *depth_buffer;
 
-static int exitCallback(int arg1, int arg2, void *common) {
+static int exit_callback(int arg1, int arg2, void *common) {
     running = 0;
     return 0;
 }
 
-static int exitCallbackThread(SceSize args, void *argp) {
-    int callbackId = sceKernelCreateCallback("ExitCallback", &exitCallback, NULL);
+static int exit_callback_thread(SceSize args, void *argp) {
+    int callbackId = sceKernelCreateCallback("exit_callback", &exit_callback, NULL);
     sceKernelRegisterExitCallback(callbackId);
     sceKernelSleepThreadCB();
     return 0;
 }
 
-static int setupCallbacks(void) {
-    int exitCallbackThreadId = sceKernelCreateThread("ExitCallbackThread", &exitCallbackThread, 0x11, 0xFA0, 0, NULL);
-    if(exitCallbackThreadId >= 0) {
-        sceKernelStartThread(exitCallbackThreadId, 0, NULL);
+static int setup_callbacks(void) {
+    int exit_callback_thread_id = sceKernelCreateThread("exit_callback_thread_id", &exit_callback_thread, 0x11, 0xFA0, 0, NULL);
+    if(exit_callback_thread_id >= 0) {
+        sceKernelStartThread(exit_callback_thread_id, 0, NULL);
         return 1;
     }
     return 0;
 }
 
-static void startFrame(void) {
-    sceGuStart(GU_DIRECT, displayList);
-    sceGuClear(clearFlags);
+static void frame_start(void) {
+    sceGuStart(GU_DIRECT, display_list);
+    sceGuClear(clear_flags);
 
-    uint32_t *disp = vabsptr(dispBuffer);
-    uint32_t *draw = vabsptr(drawBuffer);
-    for (int i = 0; i < queuedDispBufferUpdates; i++) {
-        DisplayBufferUpdate *u = &dispBufferUpdates[i];
+    uint32_t *disp = vabsptr(disp_buffer);
+    uint32_t *draw = vabsptr(draw_buffer);
+    for (int i = 0; i < queued_disp_buffer_updates; i++) {
+        disp_buffer_update_t *u = &disp_buffer_updates[i];
         sceGuCopyImage(GU_PSM_8888, u->x, u->y, u->width, u->height, BUFFER_WIDTH, draw, u->x, u->y, BUFFER_WIDTH, disp);
     }
-    queuedDispBufferUpdates = 0;
+    queued_disp_buffer_updates = 0;
 }
 
-static void endFrame(void) {
+static void frame_end(void) {
     // Start rendering.
     sceGuFinish();
     // Lazy load or wait for the next V-blank interval.
-    if (lazyLoad()) {
+    if (loader_lazy_load()) {
         sceDisplayWaitVblankStartCB();
     }
     // Wait for the frame to finish rendering.
@@ -76,18 +77,18 @@ static void endFrame(void) {
     sceGuSwapBuffers();
 }
 
-static void initGu(void) {
+static void gu_start(void) {
     // Reserve VRAM for draw, display and depth buffers.
-    drawBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
-    dispBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
-    depthBuffer = vrelptr(vramalloc(getVramMemorySize(BUFFER_WIDTH, PSP_SCREEN_HEIGHT, GU_PSM_4444)));
+    draw_buffer = vrelptr(vramalloc(get_vram_memory_size(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
+    disp_buffer = vrelptr(vramalloc(get_vram_memory_size(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
+    depth_buffer = vrelptr(vramalloc(get_vram_memory_size(BUFFER_WIDTH, PSP_SCREEN_HEIGHT, GU_PSM_4444)));
     // Initialize the graphics utility.
     sceGuInit();
-    sceGuStart(GU_DIRECT, displayList);
+    sceGuStart(GU_DIRECT, display_list);
     // Set up the buffers.
-    sceGuDrawBuffer(GU_PSM_8888, drawBuffer, BUFFER_WIDTH);
-    sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, dispBuffer, BUFFER_WIDTH);
-    sceGuDepthBuffer(depthBuffer, BUFFER_WIDTH);
+    sceGuDrawBuffer(GU_PSM_8888, draw_buffer, BUFFER_WIDTH);
+    sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, disp_buffer, BUFFER_WIDTH);
+    sceGuDepthBuffer(depth_buffer, BUFFER_WIDTH);
     // Set up viewport.
     sceGuOffset((VIRTUAL_WIDTH - PSP_SCREEN_WIDTH) / 2, (VIRTUAL_HEIGHT - PSP_SCREEN_HEIGHT) / 2);
     sceGuViewport(VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT);
@@ -112,76 +113,76 @@ static void initGu(void) {
     sceGuDisplay(GU_TRUE);
 }
 
-static void endGu(void) {
+static void gu_end(void) {
     sceGuDisplay(GU_FALSE);
     sceGuTerm();
     // Remember to free the buffers.
-    vfree(vabsptr(depthBuffer));
-    vfree(vabsptr(dispBuffer));
-    vfree(vabsptr(drawBuffer));
+    vfree(vabsptr(depth_buffer));
+    vfree(vabsptr(disp_buffer));
+    vfree(vabsptr(draw_buffer));
 }
 
-static void init(void) {
+static void start(void) {
     running = 1;
     // Set the default clear flags.
-    clearFlags = GU_DEPTH_BUFFER_BIT | GU_COLOR_BUFFER_BIT;
+    clear_flags = GU_DEPTH_BUFFER_BIT | GU_COLOR_BUFFER_BIT;
     // Initialize resource loader.
-    initLoader();
+    loader_start();
     // Set up the input mode.
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_DIGITAL);
     // Initialize graphics.
-    initGu();
+    gu_start();
     // Set up callbacks.
-    setupCallbacks();
+    setup_callbacks();
     // Set the initial game state.
-    switchState(&gameState);
+    state_start(&game_state);
 }
 
-static void cleanup(void) {
-    cleanupCurrentState();
-    endGu();
-    endLoader();
+static void end(void) {
+    state_end();
+    gu_end();
+    loader_end();
     sceKernelExitGame();
 }
 
-void setClearFlags(int flags) {
-    clearFlags = flags;
+void set_clear_flags(int flags) {
+    clear_flags = flags;
 }
 
-void queueDisplayBufferUpdate(short x, short y, short w, short h) {
-    dispBufferUpdates[queuedDispBufferUpdates].x = x;
-    dispBufferUpdates[queuedDispBufferUpdates].y = y;
-    dispBufferUpdates[queuedDispBufferUpdates].width = w;
-    dispBufferUpdates[queuedDispBufferUpdates].height = h;
-    ++queuedDispBufferUpdates;
+void queue_display_buffer_update(short x, short y, short w, short h) {
+    disp_buffer_updates[queued_disp_buffer_updates].x = x;
+    disp_buffer_updates[queued_disp_buffer_updates].y = y;
+    disp_buffer_updates[queued_disp_buffer_updates].width = w;
+    disp_buffer_updates[queued_disp_buffer_updates].height = h;
+    ++queued_disp_buffer_updates;
 }
 
-void setBackgroundScroll(short offset) {
+void set_background_scroll(short offset) {
     if (offset > PSP_SCREEN_MAX_SCROLL) {
         panic("Scroll value too big. Got %d but the maximum is %d", offset, PSP_SCREEN_MAX_SCROLL);
     } else if (offset < 0) {
         panic("Scroll value is negative. Got %d", offset);
     }
-    uint32_t bufferOffset = getVramMemorySize(BUFFER_WIDTH, (uint32_t) offset, GU_PSM_8888);
-    sceGuDrawBuffer(GU_PSM_8888, ((char *) drawBuffer) + bufferOffset, BUFFER_WIDTH);
-    sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, ((char *) dispBuffer) + bufferOffset, BUFFER_WIDTH);
+    uint32_t bufferOffset = get_vram_memory_size(BUFFER_WIDTH, (uint32_t) offset, GU_PSM_8888);
+    sceGuDrawBuffer(GU_PSM_8888, ((char *) draw_buffer) + bufferOffset, BUFFER_WIDTH);
+    sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, ((char *) disp_buffer) + bufferOffset, BUFFER_WIDTH);
 }
 
 int main(void) {
-    init();
+    start();
     const float delta = 1.0f / sceDisplayGetFramePerSec();
     while (running) {
         // Poll input.
-        sceCtrlReadBufferPositive(&__ctrlData, 1);
-        sceCtrlReadLatch(&__latchData);
+        sceCtrlReadBufferPositive(&_ctrl_data, 1);
+        sceCtrlReadLatch(&_latch_data);
         // Update the current state.
-        updateCurrentState(delta);
+        state_update(delta);
         // Render the current state.
-        startFrame();
-        renderCurrentState();
-        endFrame();
+        frame_start();
+        state_render();
+        frame_end();
     }
-    cleanup();
+    end();
     return 0;
 }

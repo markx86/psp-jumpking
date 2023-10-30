@@ -7,8 +7,8 @@
 #include <pspgu.h>
 #include <string.h>
 
-#define LOADER_MAX_LAZYJOBS 8
-#define LOADER_MAX_PATH_LENGTH 64
+#define LAZYJOBS_MAX 8
+#define LAZYJOB_PATH_LEN 64
 
 typedef enum {
     LAZYJOB_IDLE,
@@ -19,64 +19,64 @@ typedef enum {
     LAZYJOB_CLOSE,
     LAZYJOB_DECODING,
     LAZYJOB_DONE,
-} LazyJobStatus;
+} lazyjob_status_t;
 
 typedef struct {
-    LazyJobStatus status;
-    char path[LOADER_MAX_PATH_LENGTH];
-    void *dest;
-    void *readBuffer;
-    QoiJobDescriptor desc;
-    LazyJobFinishCB finishCallback;
-    void* callbackData;
-    uint32_t size;
+    lazyjob_status_t status;
+    char path[LAZYJOB_PATH_LEN];
     SceUID fd;
-} LazyJob;
+    uint32_t file_size;
+    void *decode_dst;
+    void *read_dst;
+    qoi_job_descriptor_t desc;
+    loader_lazyjob_finish_callback_t callback;
+    void* callback_data;
+} lazyjob_t;
 
-static SceUID lazyIoCallbackId;
-static int queueEnd, queueStart;
-static LazyJob lazyJobs[LOADER_MAX_LAZYJOBS];
-static LazyJob *currentJob;
+static SceUID asyncio_callback_id;
+static int queue_end, queue_start;
+static lazyjob_t lazy_jobs[LAZYJOBS_MAX];
+static lazyjob_t *current_job;
 
-static int lazyIoCallback(int arg1, int arg2, void *argp) {
-#define lazyLoaderPanic(msg, ...) panic("Error while lazy loading %s\n" msg, currentJob->path, ##__VA_ARGS__)
+static int asyncio_callback(int arg1, int arg2, void *argp) {
+#define loader_panic(msg, ...) panic("Error while lazy loading %s\n" msg, current_job->path, ##__VA_ARGS__)
     SceInt64 res;
-    if (sceIoPollAsync(currentJob->fd, &res) < 0) {
-        lazyLoaderPanic("Could not poll fd %d", currentJob->fd);
+    if (sceIoPollAsync(current_job->fd, &res) < 0) {
+        loader_panic("Could not poll fd %d", current_job->fd);
     }
-    switch (currentJob->status) {
+    switch (current_job->status) {
         case LAZYJOB_SEEK:
             if (res < 0) {
-                lazyLoaderPanic("Could not open file");
+                loader_panic("Could not open file");
             }
-            sceIoLseekAsync(currentJob->fd, 0, PSP_SEEK_END);
-            currentJob->status = LAZYJOB_REWIND;
+            sceIoLseekAsync(current_job->fd, 0, PSP_SEEK_END);
+            current_job->status = LAZYJOB_REWIND;
             break;
         
         case LAZYJOB_REWIND:
-            currentJob->size = (uint32_t) res;
-            sceIoLseekAsync(currentJob->fd, 0, PSP_SEEK_SET);
-            currentJob->status = LAZYJOB_READ;
+            current_job->file_size = (uint32_t) res;
+            sceIoLseekAsync(current_job->fd, 0, PSP_SEEK_SET);
+            current_job->status = LAZYJOB_READ;
             break;
         
         case LAZYJOB_READ:
             if (res != 0) {
-                lazyLoaderPanic("Failed to rewind file");
+                loader_panic("Failed to rewind file");
             }
-            currentJob->readBuffer = malloc(currentJob->size);
-            sceIoReadAsync(currentJob->fd, currentJob->readBuffer, currentJob->size);
-            currentJob->status = LAZYJOB_CLOSE;
+            current_job->read_dst = malloc(current_job->file_size);
+            sceIoReadAsync(current_job->fd, current_job->read_dst, current_job->file_size);
+            current_job->status = LAZYJOB_CLOSE;
             break;
         
         case LAZYJOB_CLOSE:
-            if (currentJob->size != (uint32_t) res) {
-                lazyLoaderPanic("Read bytes mismatch: read %lu bytes out of %u", res, currentJob->size);
+            if (current_job->file_size != (uint32_t) res) {
+                loader_panic("Read bytes mismatch: read %lu bytes out of %u", res, current_job->file_size);
             }
-            if (qoiInitJob(&currentJob->desc, currentJob->readBuffer, currentJob->dest)) {
-                lazyLoaderPanic("Failed to decode QOI");
+            if (qoi_start_job(&current_job->desc, current_job->read_dst, current_job->decode_dst)) {
+                loader_panic("Failed to decode QOI");
             }
-            sceIoClose(currentJob->fd);
-            currentJob->status = LAZYJOB_DECODING;
+            sceIoClose(current_job->fd);
+            current_job->status = LAZYJOB_DECODING;
             break;        
 
         // This should never be executed.
@@ -86,119 +86,119 @@ static int lazyIoCallback(int arg1, int arg2, void *argp) {
     return 0;
 }
 
-int lazyLoad(void) {
-    if (currentJob == NULL || currentJob->status != LAZYJOB_DECODING) {
+int loader_lazy_load(void) {
+    if (current_job == NULL || current_job->status != LAZYJOB_DECODING) {
         return !sceDisplayIsVblank();
     }
-    if (qoiDecodeJobWhileVBlank(&currentJob->desc)) {
+    if (qoi_lazy_decode(&current_job->desc)) {
         return 0;
     }
-    currentJob->finishCallback(currentJob->callbackData, currentJob->desc.width, currentJob->desc.height);
-    free(currentJob->readBuffer);
-    ++queueStart;
-    if (queueStart == LOADER_MAX_LAZYJOBS) {
-        queueStart = 0;
+    current_job->callback(current_job->callback_data, current_job->desc.width, current_job->desc.height);
+    free(current_job->read_dst);
+    ++queue_start;
+    if (queue_start == LAZYJOBS_MAX) {
+        queue_start = 0;
     }
-    currentJob->status = LAZYJOB_IDLE;
-    currentJob = &lazyJobs[queueStart];
-    if (currentJob->status == LAZYJOB_PENDING) {
-        currentJob->status = LAZYJOB_SEEK;
-        currentJob->fd = sceIoOpenAsync(currentJob->path, PSP_O_RDONLY, 0444);
-        if (currentJob->fd < 0) {
-            lazyLoaderPanic("Could not open file");
+    current_job->status = LAZYJOB_IDLE;
+    current_job = &lazy_jobs[queue_start];
+    if (current_job->status == LAZYJOB_PENDING) {
+        current_job->status = LAZYJOB_SEEK;
+        current_job->fd = sceIoOpenAsync(current_job->path, PSP_O_RDONLY, 0444);
+        if (current_job->fd < 0) {
+            loader_panic("Could not open file");
         }
-        sceIoSetAsyncCallback(currentJob->fd, lazyIoCallbackId, currentJob);
+        sceIoSetAsyncCallback(current_job->fd, asyncio_callback_id, current_job);
     }
     return 0;
-#undef lazyLoaderPanic
+#undef loader_panic
 }
 
-void initLoader(void) {
-    lazyIoCallbackId = sceKernelCreateCallback("LazyIoCallback", &lazyIoCallback, NULL);
-    if (lazyIoCallbackId < 0) {
+void loader_start(void) {
+    asyncio_callback_id = sceKernelCreateCallback("asyncio_callback", &asyncio_callback, NULL);
+    if (asyncio_callback_id < 0) {
         panic("Failed to create lazy loader callback.");
     }
-    memset(lazyJobs, 0, sizeof(lazyJobs));
-    queueEnd = 0;
-    queueStart = 0;
-    currentJob = NULL;
+    memset(lazy_jobs, 0, sizeof(lazy_jobs));
+    queue_end = 0;
+    queue_start = 0;
+    current_job = NULL;
 }
 
-void endLoader(void) {
-    sceKernelDeleteCallback(lazyIoCallbackId);
+void loader_end(void) {
+    sceKernelDeleteCallback(asyncio_callback_id);
 }
 
-void *readFile(const char *path, uint32_t *outSize) {
-#define readFilePanic(msg, ...) panic("Error while reading file: %s\n" msg, path, ##__VA_ARGS__)
+void *loader_read_file(const char *path, uint32_t *outSize) {
+#define loader_panic(msg, ...) panic("Error while reading file: %s\n" msg, path, ##__VA_ARGS__)
     SceUID fd = sceIoOpen(path, PSP_O_RDONLY, 0444);
     if (fd < 0) {
-        readFilePanic("Could not open file");
+        loader_panic("Could not open file");
     }
     SceOff size = sceIoLseek(fd, 0, PSP_SEEK_END);
     sceIoLseek(fd, 0, PSP_SEEK_SET);
     void *buffer = malloc(size);
-    unsigned long bytes = sceIoRead(fd, buffer, size);
+    uint32_t bytes = sceIoRead(fd, buffer, size);
     sceIoClose(fd);
     if (bytes < size) {
-        readFilePanic("Read bytes mismatch: read %u bytes out of %u", bytes, size);
+        loader_panic("Read bytes mismatch: read %u bytes out of %u", bytes, size);
     }
     if (outSize != NULL) {
         *outSize = size;
     }
     return buffer;
-#undef readFilePanic
+#undef loader_panic
 }
 
-void lazySwapTextureRam(const char *path, void *dest, LazyJobFinishCB callback, void* callbackData) {
-#define swapTexturePanic(msg, ...) panic("Error while swapping texture %s\n" msg, path, ##__VA_ARGS__)
-    LazyJob *job = &lazyJobs[queueEnd];
+void loader_lazy_swap_texture_ram(const char *path, void *dest, loader_lazyjob_finish_callback_t callback, void* callback_data) {
+#define loader_panic(msg, ...) panic("Error while swapping texture %s\n" msg, path, ##__VA_ARGS__)
+    lazyjob_t *job = &lazy_jobs[queue_end];
     while (job->status != LAZYJOB_IDLE) {
         sceKernelDelayThreadCB(1000);
     }
     strcpy(job->path, path);
-    job->dest = dest;
-    job->finishCallback = callback;
-    job->callbackData = callbackData;
-    if (queueEnd == queueStart) {
-        currentJob = &lazyJobs[queueStart];
+    job->decode_dst = dest;
+    job->callback = callback;
+    job->callback_data = callback_data;
+    if (queue_end == queue_start) {
+        current_job = &lazy_jobs[queue_start];
         job->status = LAZYJOB_SEEK;
         job->fd = sceIoOpenAsync(job->path, PSP_O_RDONLY, 0444);
         if (job->fd < 0) {
-            swapTexturePanic("Could not open file");
+            loader_panic("Could not open file");
         }
-        sceIoSetAsyncCallback(job->fd, lazyIoCallbackId, NULL);
+        sceIoSetAsyncCallback(job->fd, asyncio_callback_id, NULL);
     } else {
         job->status = LAZYJOB_PENDING;
     }
-    if (++queueEnd == LOADER_MAX_LAZYJOBS) {
-        queueEnd = 0;
+    if (++queue_end == LAZYJOBS_MAX) {
+        queue_end = 0;
     }
 }
 
-void swapTextureRam(const char *path, void *dest, uint32_t *width, uint32_t *height) {
+void loader_swap_texture_ram(const char *path, void *dest, uint32_t *width, uint32_t *height) {
     uint32_t size;
-    void *buffer = readFile(path, &size);
-    if (qoiDecode(buffer, dest, width, height)) {
-        swapTexturePanic("Could not decode QOI");
+    void *buffer = loader_read_file(path, &size);
+    if (qoi_decode(buffer, dest, width, height)) {
+        loader_panic("Could not decode QOI");
     }
-    unloadFile(buffer);
-#undef swapTexturePanic
+    loader_unload_file(buffer);
+#undef loader_panic
 }
 
-void *loadTextureVram(const char *path, uint32_t *width, uint32_t *height) {
-#define loadTexturePanic(msg, ...) panic("Error while loading texture: %s\n" msg, path, ##__VA_ARGS__)
+void *loader_load_texture_vram(const char *path, uint32_t *width, uint32_t *height) {
+#define loader_panic(msg, ...) panic("Error while loading texture: %s\n" msg, path, ##__VA_ARGS__)
     uint32_t size;
-    void *buffer = readFile(path, &size);
+    void *buffer = loader_read_file(path, &size);
     uint32_t w, h;
-    qoiDecode(buffer, NULL, &w, &h);
+    qoi_decode(buffer, NULL, &w, &h);
     void *texture = vramalloc(w * h * 4);
     if (texture == NULL) {
-        loadTexturePanic("Failed to allocate VRAM");
+        loader_panic("Failed to allocate VRAM");
     }
-    if (qoiDecode(buffer, texture, NULL, NULL)) {
-        loadTexturePanic("Failed to decode QOI");
+    if (qoi_decode(buffer, texture, NULL, NULL)) {
+        loader_panic("Failed to decode QOI");
     }
-    unloadFile(buffer);
+    loader_unload_file(buffer);
     if (width != NULL) {
         *width = w;
     }
@@ -206,12 +206,13 @@ void *loadTextureVram(const char *path, uint32_t *width, uint32_t *height) {
         *height = h;
     }
     return texture;
+#undef loader_panic
 }
 
-void unloadFile(void *buffer) {
+void loader_unload_file(void *buffer) {
     free(buffer);
 }
 
-void unloadTextureVram(void *texturePtr) {
-    vfree(texturePtr);
+void loader_unload_texture_vram(void *texture_ptr) {
+    vfree(texture_ptr);
 }

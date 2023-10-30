@@ -4,6 +4,6 @@
 #include <vram.h>
 #include <malloc.h>
 
-unsigned int getVramMemorySize(unsigned int width, unsigned int height, unsigned int psm);
+unsigned int get_vram_memory_size(unsigned int width, unsigned int height, unsigned int psm);
 
 #endif

@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-extern SceCtrlData __ctrlData;
+extern SceCtrlData _ctrl_data;
 #endif
 
 void panic(const char *fmt, ...) {
@@ -22,9 +22,9 @@ void panic(const char *fmt, ...) {
     pspDebugScreenPrintf("%s\n\n[ PRESS X TO RESET ]", msg);
  
     do {
-        sceCtrlReadBufferPositive(&__ctrlData, 1);
+        sceCtrlReadBufferPositive(&_ctrl_data, 1);
         sceKernelDelayThreadCB(100);
-    } while (!(__ctrlData.Buttons & PSP_CTRL_CROSS));
+    } while (!(_ctrl_data.Buttons & PSP_CTRL_CROSS));
 #endif
     sceKernelExitGame();
 }

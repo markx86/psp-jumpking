@@ -7,13 +7,9 @@
 #define PSP_SCREEN_HEIGHT 272
 #define PSP_SCREEN_MAX_SCROLL (STATE_SCREEN_HEIGHT - PSP_SCREEN_HEIGHT)
 
-void setClearFlags(int flags);
-void queueDisplayBufferUpdate(short x, short y, short w, short h);
-void setBackgroundScroll(short offset);
-
-// Singletons.
-extern SceCtrlData __ctrlData;
-extern SceCtrlLatch __latchData;
+void set_clear_flags(int flags);
+void queue_display_buffer_update(short x, short y, short w, short h);
+void set_background_scroll(short offset);
 
 // NOTE: It's better to only use one vertex type,
 //       so I've defined one here for the whole game.
@@ -22,6 +18,6 @@ extern SceCtrlLatch __latchData;
 typedef struct {
     short u, v;
     short x, y, z;
-} Vertex;
+} vertex_t;
 
 #endif

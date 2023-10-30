@@ -19,35 +19,35 @@ static inline __attribute__((always_inline)) uint32_t bswap32(uint32_t n) {
 	return b;
 }
 
-static inline __attribute__((always_inline)) uint32_t computeHash(QoiColor* px) {
+static inline __attribute__((always_inline)) uint32_t hash(qoi_color_t* px) {
 	return (px->r * 3 + px->g * 5 + px->b * 7 + px->a * 11) % 64;
 }
 
-int qoiInitJob(QoiJobDescriptor *desc, void *src, void *dst) {
-	QoiHeader *header = (QoiHeader *) src;
-	if (header->magic != QOI_MAGIC || header->channels != 4) {
+int qoi_start_job(qoi_job_descriptor_t *desc, void *src, void *dst) {
+	qoi_header_t *hdr = (qoi_header_t *) src;
+	if (hdr->magic != QOI_MAGIC || hdr->channels != 4) {
 		return -1;
 	}
-	desc->src = (const uint8_t *) (header + 1);
-	desc->dst = (QoiColor *) dst;
+	desc->src = (const uint8_t *) (hdr + 1);
+	desc->dst = (qoi_color_t *) dst;
 	memset(desc->colors, 0, sizeof(desc->colors));
-	desc->width = bswap32(header->width);
-	desc->height = bswap32(header->height);
-	desc->pixelsLeft = desc->width * desc->height;
-	desc->pixel = (QoiColor) { .r = 0, .g = 0, .b = 0, .a = 255 };
+	desc->width = bswap32(hdr->width);
+	desc->height = bswap32(hdr->height);
+	desc->pixels_left = desc->width * desc->height;
+	desc->pixel = (qoi_color_t) { .r = 0, .g = 0, .b = 0, .a = 255 };
 	return 0;
 }
 
-int qoiDecodeJobWhileVBlank(QoiJobDescriptor *d) {
-	QoiColor *px = &d->pixel;
-	while (d->pixelsLeft > 0 && sceDisplayGetCurrentHcount() < PSP_SCREEN_HEIGHT) {
+int qoi_lazy_decode(qoi_job_descriptor_t *d) {
+	qoi_color_t *px = &d->pixel;
+	while (d->pixels_left > 0 && sceDisplayGetCurrentHcount() < PSP_SCREEN_HEIGHT) {
 		uint8_t b = *(d->src++);
 		if (ISOP_INDEX(b)) {
 			px->c = d->colors[b & 0x3F].c;
 		} else if (ISOP_RUN(b)) {
 			uint8_t run = (b & 0x3F);
 			if (run < 62) {
-				d->pixelsLeft -= ++run;
+				d->pixels_left -= ++run;
 				for (; run > 0; --run) {
 					(d->dst++)->c = px->c;
 				}
@@ -73,60 +73,64 @@ int qoiDecodeJobWhileVBlank(QoiJobDescriptor *d) {
 			px->r += (b & 0x3) - 2;
 		}
 		(d->dst++)->c = px->c;
-		int hash = computeHash(px);
-		d->colors[hash].c = px->c;
-		--d->pixelsLeft;
+		d->colors[hash(px)].c = px->c;
+		--d->pixels_left;
 	}
-	return d->pixelsLeft > 0;
+	return d->pixels_left > 0;
 }
 
-int qoiDecode(void *src, void *dst, uint32_t *outWidth, uint32_t *outHeight) {
-	if (src == NULL) {
+int qoi_decode(void *in_src, void *in_dst, uint32_t *out_width, uint32_t *out_height) {
+	if (in_src == NULL) {
 		return -1;
 	}
-	QoiHeader *hdr = src;
+
+	qoi_header_t *hdr = in_src;
 	if (hdr->magic != QOI_MAGIC || hdr->channels != 4) {
 		return -1;
 	}
+
 	int width = bswap32(hdr->width);
+	if (out_width != NULL) {
+		*out_width = width;
+	}
 	int height = bswap32(hdr->height);
-	if (outWidth != NULL) {
-		*outWidth = width;
+	if (out_height != NULL) {
+		*out_height = height;
 	}
-	if (outHeight != NULL) {
-		*outHeight = height;
-	}
-	if (dst == NULL) {
+
+	if (in_dst == NULL) {
 		return -1;
 	}
- 	uint32_t pixels = width * height;
-	QoiColor *out = dst;
-	const uint8_t* in = (uint8_t *)(hdr + 1);
-	QoiColor colors[64];
-	QoiColor px = (QoiColor) { .r = 0, .g = 0, .b = 0, .a = 255 };
+
+	const uint8_t* src = (uint8_t *)(hdr + 1);
+	qoi_color_t *dst = in_dst;
+ 	uint32_t pixels_left = width * height;
+	qoi_color_t px = (qoi_color_t) { .r = 0, .g = 0, .b = 0, .a = 255 };
+	qoi_color_t colors[64];
 	memset(colors, 0, sizeof(colors));
-	while (pixels > 0) {
-		uint8_t b = *(in++);
+
+	while (pixels_left > 0) {
+		uint8_t b = *(src++);
 		if (ISOP_INDEX(b)) {
 			px.c = colors[b & 0x3F].c;
 		} else if (ISOP_RUN(b)) {
 			uint8_t run = (b & 0x3F);
 			if (run < 62) {
-				pixels -= ++run;
+				pixels_left -= ++run;
 				for (; run > 0; --run) {
-					(out++)->c = px.c;
+					(dst++)->c = px.c;
 				}
 				continue;
 			} else {
 				int is_rgba = run & 1;
-				px.r = *(in++);
-				px.g = *(in++);
-				px.b = *(in++);
-				px.a = is_rgba ? *(in++) : px.a;
+				px.r = *(src++);
+				px.g = *(src++);
+				px.b = *(src++);
+				px.a = is_rgba ? *(src++) : px.a;
 			}
 		} else if (ISOP_LUMA(b)) {
 			int8_t dg = (b & 0x3F) - 32;
-			b = *(in++);
+			b = *(src++);
 			px.b += (b & 0xF) + dg - 8;			
 			px.r += ((b >> 4) & 0xF) + dg - 8;
 			px.g += dg;
@@ -137,10 +141,9 @@ int qoiDecode(void *src, void *dst, uint32_t *outWidth, uint32_t *outHeight) {
 			b >>= 2;
 			px.r += (b & 0x3) - 2;
 		}
-		(out++)->c = px.c;
-		int hash = computeHash(&px);
-		colors[hash].c = px.c;
-		--pixels;
+		(dst++)->c = px.c;
+		colors[hash(&px)].c = px.c;
+		--pixels_left;
 	}
 	return 0;
 }

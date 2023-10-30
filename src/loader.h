@@ -4,19 +4,19 @@
 #include <pspkerneltypes.h>
 #include <stdint.h>
 
-typedef void (*LazyJobFinishCB)(void *data, uint32_t width, uint32_t height);
+typedef void (*loader_lazyjob_finish_callback_t)(void *data, uint32_t width, uint32_t height);
 
-int lazyLoad(void);
-void initLoader(void);
-void endLoader(void);
+int loader_lazy_load(void);
+void loader_start(void);
+void loader_end(void);
 
-void lazySwapTextureRam(const char *path, void *dest, LazyJobFinishCB callback, void *callbackData);
-void swapTextureRam(const char *path, void *dest, uint32_t *width, uint32_t *height);
+void loader_lazy_swap_texture_ram(const char *path, void *dest, loader_lazyjob_finish_callback_t callback, void *callback_data);
+void loader_swap_texture_ram(const char *path, void *dest, uint32_t *width, uint32_t *height);
 
-void *readFile(const char *path, uint32_t *outSize);
-void unloadFile(void *buffer);
+void *loader_read_file(const char *path, uint32_t *out_size);
+void loader_unload_file(void *buffer);
 
-void *loadTextureVram(const char *path, uint32_t *outWidth, uint32_t *outHeight);
-void unloadTextureVram(void *texturePtr);
+void *loader_load_texture_vram(const char *path, uint32_t *out_width, uint32_t *out_height);
+void loader_unload_texture_vram(void *texture_ptr);
 
 #endif

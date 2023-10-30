@@ -7,34 +7,37 @@
 #include <pspgu.h>
 
 typedef struct {
-    void (*init)(void);
+    void (*start)(void);
     void (*update)(float delta);
     void (*render)(void);
-    void (*cleanup)(void);
-} GameState;
+    void (*end)(void);
+} game_state_t;
 
 // Aliases.
-#define Input __ctrlData
-#define Latch __latchData
+#define input _ctrl_data
+#define latch _latch_data
 
-extern const GameState *currentState;
+// Singletons.
+extern SceCtrlData _ctrl_data;
+extern SceCtrlLatch _latch_data;
+extern const game_state_t *_current_state;
 
-static inline void switchState(const GameState *new) {
-    if (currentState != NULL) {
-        currentState->cleanup();
+static inline void state_start(const game_state_t *new) {
+    if (_current_state != NULL) {
+        _current_state->end();
     }
-    currentState = new;
-    currentState->init();
+    _current_state = new;
+    _current_state->start();
 }
 
-#define renderCurrentState() currentState->render()
-#define updateCurrentState(delta) currentState->update(delta);
-#define cleanupCurrentState() currentState->cleanup();
+#define state_render() _current_state->render()
+#define state_update(delta) _current_state->update(delta);
+#define state_end() _current_state->end();
 
 // Stuff needed for rendering.
 #define STATE_SCREEN_WIDTH 480
 #define STATE_SCREEN_HEIGHT 360
 
-extern const GameState gameState;
+extern const game_state_t game_state;
 
 #endif
