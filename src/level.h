@@ -43,10 +43,10 @@ typedef struct {
     unsigned char blocks[LEVEL_SCREEN_BLOCK_HEIGHT][LEVEL_SCREEN_BLOCK_WIDTH];
 } __attribute__((packed)) LevelScreen;
 
-void loadLevel(unsigned int startScreen);
-LevelScreen *getLevelScreen(unsigned int index);
+void loadLevel(uint32_t startScreen);
+LevelScreen *getLevelScreen(uint32_t index);
 Vertex *renderLevelScreen(short scroll);
-Vertex *renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll);
+Vertex *renderLevelScreenSection(short x, short y, short width, short height, uint32_t currentScroll);
 void renderLevelScreenLinesTop(short scroll, short lines);
 void renderLevelScreenLinesBottom(short scroll, short lines);
 void renderForegroundOnTop(Vertex *sectionVertices);

@@ -1,7 +1,6 @@
 #include "level.h"
 #include "loader.h"
 #include "panic.h"
-#include "jki.h"
 #include <pspgu.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,9 +36,9 @@ static LevelScreen *lastScreenReturned;
 static LevelScreenHandle screenHandlePrevious;
 static LevelScreenHandle screenHandleCurrent;
 static LevelScreenHandle screenHandleNext;
-static __attribute__((section(".bss"), aligned(16))) char texturesPool[3][JKI_TAIL_SIZE + LEVEL_SCREEN_BYTES];
+static __attribute__((section(".bss"), aligned(16))) char texturesPool[3][LEVEL_SCREEN_BYTES];
 
-static void screenImageLoadedCallback(void *data, unsigned int width, unsigned int height) {
+static void screenImageLoadedCallback(void *data, uint32_t width, uint32_t height) {
     LevelScreenHandle *handle = (LevelScreenHandle *) data;
     handle->hasForeground = height > LEVEL_SCREEN_HEIGHT;
 }
@@ -50,7 +49,7 @@ static void loadScreenImage(LevelScreenHandle *handle, LevelScreenLoadingType lo
     }
     char file[64];
     sprintf(file, "assets/screens/%u.qoi", handle->index + 1);
-    unsigned int width, height;
+    uint32_t width, height;
     switch (loadType) {
         case LOAD_LAZY:
             lazySwapTextureRam(file, handle->texture, &screenImageLoadedCallback, handle);
@@ -62,9 +61,9 @@ static void loadScreenImage(LevelScreenHandle *handle, LevelScreenLoadingType lo
     }
 }
 
-void loadLevel(unsigned int startScreen) {
+void loadLevel(uint32_t startScreen) {
     // Load the level data.
-    unsigned int size;
+    uint32_t size;
     level.screens = readFile("assets/level.bin", &size);
     level.totalScreens = size / sizeof(LevelScreen);
     // Initialize screen texture handles.
@@ -79,7 +78,7 @@ void loadLevel(unsigned int startScreen) {
     getLevelScreen(startScreen);
 }
 
-LevelScreen *getLevelScreen(unsigned int index) {
+LevelScreen *getLevelScreen(uint32_t index) {
     // Check if the index is valid (maybe we computed the wrong index?).
     if (index < level.totalScreens) {
         LevelScreen *screen = &level.screens[index];
@@ -275,7 +274,7 @@ void forceCleanLevelArtifactAt(short x, short y, short width, short height) {
     queueDisplayBufferUpdate(x, y, width, height);
 }
 
-Vertex *renderLevelScreenSection(short x, short y, short width, short height, unsigned int currentScroll) {
+Vertex *renderLevelScreenSection(short x, short y, short width, short height, uint32_t currentScroll) {
     // Clamp x coordinate within the screen bounds.
     if (x < 0) {
         x = 0;

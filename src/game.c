@@ -7,7 +7,7 @@
 
 static short kingSX[2], kingSY[2];
 static short prevKingSX[2], prevKingSY[2];
-static unsigned int vBuffer, frameCounter, currentScreenIndex;
+static uint32_t vBuffer, frameCounter, currentScreenIndex;
 static short currentScroll, targetScroll, minScroll, maxScroll;
 
 static void init(void) {
@@ -38,7 +38,7 @@ static void init(void) {
 static void update(float delta) {
     // Update the player.
     LevelScreen *screen = getLevelScreen(currentScreenIndex);
-    unsigned int newScreenIndex = currentScreenIndex;
+    uint32_t newScreenIndex = currentScreenIndex;
     kingUpdate(delta, screen, &newScreenIndex);
 
     // Check if we need to change the screen.

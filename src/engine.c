@@ -54,8 +54,8 @@ static void startFrame(void) {
     sceGuStart(GU_DIRECT, displayList);
     sceGuClear(clearFlags);
 
-    unsigned int *disp = vabsptr(dispBuffer);
-    unsigned int *draw = vabsptr(drawBuffer);
+    uint32_t *disp = vabsptr(dispBuffer);
+    uint32_t *draw = vabsptr(drawBuffer);
     for (int i = 0; i < queuedDispBufferUpdates; i++) {
         DisplayBufferUpdate *u = &dispBufferUpdates[i];
         sceGuCopyImage(GU_PSM_8888, u->x, u->y, u->width, u->height, BUFFER_WIDTH, draw, u->x, u->y, BUFFER_WIDTH, disp);
@@ -66,8 +66,8 @@ static void startFrame(void) {
 static void endFrame(void) {
     // Start rendering.
     sceGuFinish();
-    // Wait for the next V-blank interval.
-    if (!sceDisplayIsVblank()) {
+    // Lazy load or wait for the next V-blank interval.
+    if (lazyLoad()) {
         sceDisplayWaitVblankStartCB();
     }
     // Wait for the frame to finish rendering.
@@ -163,7 +163,7 @@ void setBackgroundScroll(short offset) {
     } else if (offset < 0) {
         panic("Scroll value is negative. Got %d", offset);
     }
-    unsigned int bufferOffset = getVramMemorySize(BUFFER_WIDTH, (unsigned int) offset, GU_PSM_8888);
+    uint32_t bufferOffset = getVramMemorySize(BUFFER_WIDTH, (uint32_t) offset, GU_PSM_8888);
     sceGuDrawBuffer(GU_PSM_8888, ((char *) drawBuffer) + bufferOffset, BUFFER_WIDTH);
     sceGuDispBuffer(PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, ((char *) dispBuffer) + bufferOffset, BUFFER_WIDTH);
 }

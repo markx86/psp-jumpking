@@ -271,7 +271,7 @@ void kingCreate(void) {
     currentSprite = PLAYER_GET_SPRITE(currentSpriteIndex);
 }
 
-void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) {
+void kingUpdate(float delta, LevelScreen *screen, uint32_t *outScreenIndex) {
     // Update status
     {
         if (velocityY) {
@@ -480,7 +480,7 @@ void kingUpdate(float delta, LevelScreen *screen, unsigned int *outScreenIndex) 
     }
 }
 
-void kingRender(short *outSX, short *outSY, unsigned int currentScroll) {
+void kingRender(short *outSX, short *outSY, uint32_t currentScroll) {
     Vertex *vertices = (Vertex*) sceGuGetMemory(2 * sizeof(Vertex));
     // Translate the player's level screen coordinates
     // to the PSP's screen coordinates.

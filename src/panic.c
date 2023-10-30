@@ -5,7 +5,6 @@
 #include <pspdebug.h>
 #include <stdio.h>
 #include <stdarg.h>
-#include <string.h>
 
 extern SceCtrlData __ctrlData;
 #endif
