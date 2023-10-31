@@ -83,12 +83,12 @@ static void frame_end(void) {
 
 static void gu_start(void) {
   // Reserve VRAM for draw, display and depth buffers.
-  draw_buffer = vrelptr(vramalloc(
-      get_vram_memory_size(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
-  disp_buffer = vrelptr(vramalloc(
-      get_vram_memory_size(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
-  depth_buffer = vrelptr(vramalloc(
-      get_vram_memory_size(BUFFER_WIDTH, PSP_SCREEN_HEIGHT, GU_PSM_4444)));
+  draw_buffer = mem_to_vmem(
+      alloc_vmem(get_texture_size(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
+  disp_buffer = mem_to_vmem(
+      alloc_vmem(get_texture_size(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
+  depth_buffer = mem_to_vmem(alloc_vmem(
+      get_texture_size(BUFFER_WIDTH, PSP_SCREEN_HEIGHT, GU_PSM_4444)));
   // Initialize the graphics utility.
   sceGuInit();
   sceGuStart(GU_DIRECT, display_list);
@@ -129,9 +129,9 @@ static void gu_end(void) {
   sceGuDisplay(GU_FALSE);
   sceGuTerm();
   // Remember to free the buffers.
-  vfree(vabsptr(depth_buffer));
-  vfree(vabsptr(disp_buffer));
-  vfree(vabsptr(draw_buffer));
+  free_vmem(vmem_to_mem(depth_buffer));
+  free_vmem(vmem_to_mem(disp_buffer));
+  free_vmem(vmem_to_mem(draw_buffer));
 }
 
 static void start(void) {
@@ -179,7 +179,7 @@ void set_background_scroll(short offset) {
     panic("Scroll value is negative. Got %d", offset);
   }
   uint32_t bufferOffset =
-      get_vram_memory_size(BUFFER_WIDTH, (uint32_t)offset, GU_PSM_8888);
+      get_texture_size(BUFFER_WIDTH, (uint32_t)offset, GU_PSM_8888);
   sceGuDrawBuffer(
       GU_PSM_8888, ((char*)draw_buffer) + bufferOffset, BUFFER_WIDTH);
   sceGuDispBuffer(

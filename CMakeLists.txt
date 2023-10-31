@@ -23,7 +23,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     pspge
     pspdisplay
     pspctrl
-    pspvram
+    pspvramalloc
     debug pspdebug
 )
 

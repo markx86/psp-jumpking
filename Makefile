@@ -8,6 +8,9 @@ build: $(BUILDDIR)
 clean:
 	rm -rf $(BUILDDIR)
 
+fmt:
+	clang-format -i src/*
+
 $(BUILDDIR):
 	@mkdir -p $@ && cd $@ && psp-cmake ..
 	@cd $@ && ln -s ../assets

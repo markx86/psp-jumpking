@@ -197,9 +197,9 @@ static void do_collision(float new_x, float new_y, level_screen_t* screen) {
     short was_vertical_collision;
     short is_diagonal_collision = info.width == info.height;
     short abs_vx =
-        (velocity_x > 0.0f) ? velocity_x : -velocity_x; // |velocityX|
+        (velocity_x > 0.0f) ? velocity_x : -velocity_x; // |velocity_x|
     short abs_vy =
-        (velocity_y > 0.0f) ? velocity_y : -velocity_y; // |velocityY|
+        (velocity_y > 0.0f) ? velocity_y : -velocity_y; // |velocity_y|
     if (info.width > info.height ||
         (is_diagonal_collision && abs_vy >= abs_vx)) {
       // A collision is vertical if the intersection rectangle
@@ -300,7 +300,8 @@ void king_update(
       in_air = 1;
       if (velocity_y > 0.0f) {
         // If the player is jumping up (meaning the vertical velocity is
-        // positive), reset the jump power. NOTE: This is there because the
+        // positive), reset the jump power.
+        // NOTE: This is there because the
         // player can be falling,
         //       and still be on a solid block (eg. sand block).
         // TODO: This still needs to be implemented properly.
@@ -393,7 +394,7 @@ void king_update(
               // - if it was, override the player's direction
               direction = leniency_direction;
             }
-            // - set the horizontal speed to PLAYER_JUMP_HSPEED in the direction
+            // - set the horizontal speed to KING_JUMP_HSPEED in the direction
             //   the player is facing
             velocity_x = direction * KING_JUMP_HSPEED;
           } else {

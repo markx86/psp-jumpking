@@ -181,7 +181,7 @@ static void render(void) {
   // for each buffer, and paint over them in the right order.
   // For more information on double buffering check out:
   // https://en.wikipedia.org/wiki/Multiple_buffering#Double_buffering_in_computer_graphics
-  framebuffer_index = !framebuffer_index;
+  framebuffer_index ^= framebuffer_index;
 }
 
 static void end(void) {

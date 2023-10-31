@@ -64,7 +64,7 @@ static int asyncio_callback(int arg1, int arg2, void* argp) {
       if (res != 0) {
         loader_panic("Failed to rewind file");
       }
-      current_job->read_dst = malloc(current_job->file_size);
+      current_job->read_dst = alloc_mem(current_job->file_size);
       sceIoReadAsync(
           current_job->fd, current_job->read_dst, current_job->file_size);
       current_job->status = LAZYJOB_CLOSE;
@@ -99,10 +99,11 @@ int loader_lazy_load(void) {
   if (qoi_lazy_decode(&current_job->desc)) {
     return 0;
   }
+  sceKernelDcacheWritebackAll();
   current_job->callback(
       current_job->callback_data, current_job->desc.width,
       current_job->desc.height);
-  free(current_job->read_dst);
+  free_mem(current_job->read_dst);
   ++queue_start;
   if (queue_start == LAZYJOBS_MAX) {
     queue_start = 0;
@@ -146,7 +147,7 @@ void* loader_read_file(const char* path, uint32_t* outSize) {
   }
   SceOff size = sceIoLseek(fd, 0, PSP_SEEK_END);
   sceIoLseek(fd, 0, PSP_SEEK_SET);
-  void* buffer = malloc(size);
+  void* buffer = alloc_mem(size);
   uint32_t bytes = sceIoRead(fd, buffer, size);
   sceIoClose(fd);
   if (bytes < size) {
@@ -214,7 +215,7 @@ void* loader_load_texture_vram(
   void* buffer = loader_read_file(path, &size);
   uint32_t w, h;
   qoi_decode(buffer, NULL, &w, &h);
-  void* texture = vramalloc(w * h * 4);
+  void* texture = alloc_vmem(w * h * 4);
   if (texture == NULL) {
     loader_panic("Failed to allocate VRAM");
   }
@@ -233,9 +234,9 @@ void* loader_load_texture_vram(
 }
 
 void loader_unload_file(void* buffer) {
-  free(buffer);
+  free_mem(buffer);
 }
 
 void loader_unload_texture_vram(void* texture_ptr) {
-  vfree(texture_ptr);
+  free_vmem(texture_ptr);
 }

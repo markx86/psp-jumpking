@@ -41,10 +41,10 @@ typedef enum {
 } level_screen_block_t;
 
 typedef struct {
-  unsigned short magic;
-  unsigned char wind;
-  unsigned char teleport_index;
-  unsigned char blocks[LEVEL_SCREEN_BLOCK_HEIGHT][LEVEL_SCREEN_BLOCK_WIDTH];
+  uint16_t magic;
+  uint8_t wind;
+  uint8_t teleport_index;
+  uint8_t blocks[LEVEL_SCREEN_BLOCK_HEIGHT][LEVEL_SCREEN_BLOCK_WIDTH];
 } __attribute__((packed)) level_screen_t;
 
 void level_load(uint32_t start_screen);
