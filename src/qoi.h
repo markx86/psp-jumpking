@@ -27,12 +27,12 @@ typedef struct {
   uint32_t pixels_left;
   qoi_color_t pixel;
   qoi_color_t colors[64];
-  const uint8_t *src;
-  qoi_color_t *dst;
+  const uint8_t* src;
+  qoi_color_t* dst;
 } qoi_job_descriptor_t;
 
-int qoi_start_job(qoi_job_descriptor_t *desc, void *src, void *dst);
-int qoi_lazy_decode(qoi_job_descriptor_t *desc);
-int qoi_decode(void *src, void *dst, uint32_t *width, uint32_t *height);
+int qoi_start_job(qoi_job_descriptor_t* desc, void* src, void* dst);
+int qoi_lazy_decode(qoi_job_descriptor_t* desc);
+int qoi_decode(void* src, void* dst, uint32_t* width, uint32_t* height);
 
 #endif

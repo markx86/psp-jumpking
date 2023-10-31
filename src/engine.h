@@ -13,11 +13,11 @@ void set_background_scroll(short offset);
 
 // NOTE: It's better to only use one vertex type,
 //       so I've defined one here for the whole game.
-//       It uses 16-bit texture (UV) coordinates and 
+//       It uses 16-bit texture (UV) coordinates and
 //       16-bit vertex coordinates.
 typedef struct {
-    short u, v;
-    short x, y, z;
+  short u, v;
+  short x, y, z;
 } vertex_t;
 
 #endif
