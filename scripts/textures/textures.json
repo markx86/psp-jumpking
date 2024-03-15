@@ -1,478 +1,478 @@
 [
-    {
-        "type": "tilemap",
-        "file": "king/base.png",
-        "tilemaps": [
-            {
-                "name": "regular",
-                "offset": [224, 0],
-                "xpad": "center",
-                "ypad": "top",
-                "tileSize": [48,48],
-                "sizeInTiles": [4, 4],
-                "totalTiles": 13
-            }
-        ]
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/1.png"],
-        "foreground": "screens/foreground/fg1.png",
-        "screen": {
-            "number": 1,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/2.png"],
-        "foreground": "screens/foreground/fg2.png",
-        "screen": {
-            "number": 2,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/3.png"],
-        "foreground": "screens/foreground/fg3.png",
-        "screen": {
-            "number": 3,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/4.png",
-            "screens/background/bg4.png"
-        ],
-        "foreground": "screens/foreground/fg4.png",
-        "screen": {
-            "number": 4,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/5.png",
-            "screens/background/bg5.png"
-        ],
-        "foreground": "screens/foreground/fg5.png",
-        "screen": {
-            "number": 5,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/6.png",
-            "screens/background/bg6.png"
-        ],
-        "foreground": "screens/foreground/fg6.png",
-        "screen": {
-            "number": 6,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/7.png"],
-        "screen": {
-            "number": 7,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/8.png"],
-        "screen": {
-            "number": 8,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/9.png"],
-        "foreground": "screens/foreground/fg9.png",
-        "screen": {
-            "number": 9,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/10.png"],
-        "foreground": "screens/foreground/fg10.png",
-        "screen": {
-            "number": 10,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/11.png"],
-        "screen": {
-            "number": 11,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/12.png"],
-        "screen": {
-            "number": 12,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/13.png"],
-        "screen": {
-            "number": 13,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/14.png",
-            "screens/background/bg14.png"
-        ],
-        "screen": {
-            "number": 14,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/15.png",
-            "screens/background/bg15.png"
-        ],
-        "screen": {
-            "number": 15,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/16.png",
-            "screens/background/bg16.png"
-        ],
-        "foreground": "screens/foreground/fg16.png",
-        "screen": {
-            "number": 16,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/17.png",
-            "screens/background/bg17.png"
-        ],
-        "foreground": "screens/foreground/fg17.png",
-        "screen": {
-            "number": 17,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/18.png",
-            "screens/background/bg18.png"
-        ],
-        "foreground": "screens/foreground/fg18.png",
-        "screen": {
-            "number": 18,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/19.png",
-            "screens/background/bg19.png"
-        ],
-        "screen": {
-            "number": 19,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/20.png",
-            "screens/background/bg20.png"
-        ],
-        "screen": {
-            "number": 20,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/21.png",
-            "screens/background/bg21.png"
-        ],
-        "foreground": "screens/foreground/fg21.png",
-        "screen": {
-            "number": 21,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/22.png",
-            "screens/background/bg22.png"
-        ],
-        "foreground": "screens/foreground/fg22.png",
-        "screen": {
-            "number": 22,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/23.png",
-            "screens/background/bg23.png"
-        ],
-        "screen": {
-            "number": 23,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/24.png",
-            "screens/background/bg24.png"
-        ],
-        "screen": {
-            "number": 24,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/25.png",
-            "screens/background/bg25.png"
-        ],
-        "foreground": "screens/foreground/fg25.png",
-        "screen": {
-            "number": 25,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/26.png",
-            "screens/background/bg26.png"
-        ],
-        "foreground": "screens/foreground/fg26.png",
-        "screen": {
-            "number": 26,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/27.png",
-            "screens/background/bg27.png"
-        ],
-        "foreground": "screens/foreground/fg27.png",
-        "screen": {
-            "number": 27,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/28.png",
-            "screens/background/bg28.png"
-        ],
-        "foreground": "screens/foreground/fg28.png",
-        "screen": {
-            "number": 28,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/29.png",
-            "screens/background/bg29.png"
-        ],
-        "foreground": "screens/foreground/fg29.png",
-        "screen": {
-            "number": 29,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/30.png",
-            "screens/background/bg30.png"
-        ],
-        "foreground": "screens/foreground/fg30.png",
-        "screen": {
-            "number": 30,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/31.png",
-            "screens/background/bg31.png"
-        ],
-        "foreground": "screens/foreground/fg31.png",
-        "screen": {
-            "number": 31,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/32.png",
-            "screens/background/bg32.png"
-        ],
-        "foreground": "screens/foreground/fg32.png",
-        "screen": {
-            "number": 32,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/33.png"],
-        "screen": {
-            "number": 33,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/34.png"],
-        "screen": {
-            "number": 34,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": ["screens/midground/35.png"],
-        "screen": {
-            "number": 35,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/36.png",
-            "screens/background/bg36.png"
-        ],
-        "foreground": "screens/foreground/fg36.png",
-        "screen": {
-            "number": 36,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/37.png",
-            "screens/background/bg37.png"
-        ],
-        "foreground": "screens/foreground/fg37.png",
-        "screen": {
-            "number": 37,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/38.png",
-            "screens/background/bg38.png"
-        ],
-        "foreground": "screens/foreground/fg38.png",
-        "screen": {
-            "number": 38,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/39.png",
-            "screens/background/bg39.png"
-        ],
-        "foreground": "screens/foreground/fg39.png",
-        "screen": {
-            "number": 39,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/40.png",
-            "screens/background/bg40.png"
-        ],
-        "foreground": "screens/foreground/fg40.png",
-        "screen": {
-            "number": 40,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/41.png",
-            "screens/background/bg41.png"
-        ],
-        "screen": {
-            "number": 41,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/42.png",
-            "screens/background/bg42.png"
-        ],
-        "screen": {
-            "number": 42,
-            "size": [480, 360]
-        }
-    },
-    {
-        "type": "screen",
-        "background": [
-            "screens/midground/43.png",
-            "screens/background/bg43.png"
-        ],
-        "foreground": "screens/foreground/fg43.png",
-        "screen": {
-            "number": 43,
-            "size": [480, 360]
-        }
+  {
+    "type": "tilemap",
+    "file": "king/base.png",
+    "tilemaps": [
+      {
+        "name": "regular",
+        "offset": [224, 0],
+        "xpad": "center",
+        "ypad": "top",
+        "tileSize": [48,48],
+        "sizeInTiles": [4, 4],
+        "totalTiles": 13
+      }
+    ]
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/1.png"],
+    "foreground": "screens/foreground/fg1.png",
+    "screen": {
+      "number": 1,
+      "size": [480, 360]
     }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/2.png"],
+    "foreground": "screens/foreground/fg2.png",
+    "screen": {
+      "number": 2,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/3.png"],
+    "foreground": "screens/foreground/fg3.png",
+    "screen": {
+      "number": 3,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/4.png",
+      "screens/background/bg4.png"
+    ],
+    "foreground": "screens/foreground/fg4.png",
+    "screen": {
+      "number": 4,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/5.png",
+      "screens/background/bg5.png"
+    ],
+    "foreground": "screens/foreground/fg5.png",
+    "screen": {
+      "number": 5,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/6.png",
+      "screens/background/bg6.png"
+    ],
+    "foreground": "screens/foreground/fg6.png",
+    "screen": {
+      "number": 6,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/7.png"],
+    "screen": {
+      "number": 7,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/8.png"],
+    "screen": {
+      "number": 8,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/9.png"],
+    "foreground": "screens/foreground/fg9.png",
+    "screen": {
+      "number": 9,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/10.png"],
+    "foreground": "screens/foreground/fg10.png",
+    "screen": {
+      "number": 10,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/11.png"],
+    "screen": {
+      "number": 11,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/12.png"],
+    "screen": {
+      "number": 12,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/13.png"],
+    "screen": {
+      "number": 13,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/14.png",
+      "screens/background/bg14.png"
+    ],
+    "screen": {
+      "number": 14,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/15.png",
+      "screens/background/bg15.png"
+    ],
+    "screen": {
+      "number": 15,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/16.png",
+      "screens/background/bg16.png"
+    ],
+    "foreground": "screens/foreground/fg16.png",
+    "screen": {
+      "number": 16,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/17.png",
+      "screens/background/bg17.png"
+    ],
+    "foreground": "screens/foreground/fg17.png",
+    "screen": {
+      "number": 17,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/18.png",
+      "screens/background/bg18.png"
+    ],
+    "foreground": "screens/foreground/fg18.png",
+    "screen": {
+      "number": 18,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/19.png",
+      "screens/background/bg19.png"
+    ],
+    "screen": {
+      "number": 19,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/20.png",
+      "screens/background/bg20.png"
+    ],
+    "screen": {
+      "number": 20,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/21.png",
+      "screens/background/bg21.png"
+    ],
+    "foreground": "screens/foreground/fg21.png",
+    "screen": {
+      "number": 21,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/22.png",
+      "screens/background/bg22.png"
+    ],
+    "foreground": "screens/foreground/fg22.png",
+    "screen": {
+      "number": 22,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/23.png",
+      "screens/background/bg23.png"
+    ],
+    "screen": {
+      "number": 23,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/24.png",
+      "screens/background/bg24.png"
+    ],
+    "screen": {
+      "number": 24,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/25.png",
+      "screens/background/bg25.png"
+    ],
+    "foreground": "screens/foreground/fg25.png",
+    "screen": {
+      "number": 25,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/26.png",
+      "screens/background/bg26.png"
+    ],
+    "foreground": "screens/foreground/fg26.png",
+    "screen": {
+      "number": 26,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/27.png",
+      "screens/background/bg27.png"
+    ],
+    "foreground": "screens/foreground/fg27.png",
+    "screen": {
+      "number": 27,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/28.png",
+      "screens/background/bg28.png"
+    ],
+    "foreground": "screens/foreground/fg28.png",
+    "screen": {
+      "number": 28,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/29.png",
+      "screens/background/bg29.png"
+    ],
+    "foreground": "screens/foreground/fg29.png",
+    "screen": {
+      "number": 29,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/30.png",
+      "screens/background/bg30.png"
+    ],
+    "foreground": "screens/foreground/fg30.png",
+    "screen": {
+      "number": 30,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/31.png",
+      "screens/background/bg31.png"
+    ],
+    "foreground": "screens/foreground/fg31.png",
+    "screen": {
+      "number": 31,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/32.png",
+      "screens/background/bg32.png"
+    ],
+    "foreground": "screens/foreground/fg32.png",
+    "screen": {
+      "number": 32,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/33.png"],
+    "screen": {
+      "number": 33,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/34.png"],
+    "screen": {
+      "number": 34,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": ["screens/midground/35.png"],
+    "screen": {
+      "number": 35,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/36.png",
+      "screens/background/bg36.png"
+    ],
+    "foreground": "screens/foreground/fg36.png",
+    "screen": {
+      "number": 36,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/37.png",
+      "screens/background/bg37.png"
+    ],
+    "foreground": "screens/foreground/fg37.png",
+    "screen": {
+      "number": 37,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/38.png",
+      "screens/background/bg38.png"
+    ],
+    "foreground": "screens/foreground/fg38.png",
+    "screen": {
+      "number": 38,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/39.png",
+      "screens/background/bg39.png"
+    ],
+    "foreground": "screens/foreground/fg39.png",
+    "screen": {
+      "number": 39,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/40.png",
+      "screens/background/bg40.png"
+    ],
+    "foreground": "screens/foreground/fg40.png",
+    "screen": {
+      "number": 40,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/41.png",
+      "screens/background/bg41.png"
+    ],
+    "screen": {
+      "number": 41,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/42.png",
+      "screens/background/bg42.png"
+    ],
+    "screen": {
+      "number": 42,
+      "size": [480, 360]
+    }
+  },
+  {
+    "type": "screen",
+    "background": [
+      "screens/midground/43.png",
+      "screens/background/bg43.png"
+    ],
+    "foreground": "screens/foreground/fg43.png",
+    "screen": {
+      "number": 43,
+      "size": [480, 360]
+    }
+  }
 ]

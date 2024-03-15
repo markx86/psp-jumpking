@@ -20,7 +20,12 @@ static inline __attribute__((always_inline)) uint32_t bswap32(uint32_t n) {
 }
 
 static inline __attribute__((always_inline)) uint32_t hash(qoi_color_t* px) {
-  return (px->r * 3 + px->g * 5 + px->b * 7 + px->a * 11) % 64;
+  return (
+            (px->r << 1) + px->r +
+            (px->g << 2) + px->g +
+            (px->b << 3) - px->b +
+            (px->a << 4) - (px->a << 2) - px->a
+        ) & 63;
 }
 
 int qoi_start_job(qoi_job_descriptor_t* desc, void* src, void* dst) {

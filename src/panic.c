@@ -15,7 +15,7 @@ void panic(const char* fmt, ...) {
   char msg[256];
 
   va_start(list, fmt);
-  vsprintf(msg, fmt, list);
+  vsnprintf(msg, sizeof(msg), fmt, list);
   va_end(list);
 
   pspDebugScreenInit();

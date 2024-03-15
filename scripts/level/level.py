@@ -4,7 +4,7 @@ import pathlib
 import argparse
 import imageio.v3 as iio
 
-TOTAL_SCREENS = 164
+TOTAL_SCREENS = 43
 
 TILE_WIDTH = 60
 TILE_HEIGHT = 45

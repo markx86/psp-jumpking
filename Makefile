@@ -1,6 +1,6 @@
 BUILDDIR = $(abspath ./build)
 
-.PHONY: build clean
+.PHONY: build clean fmt
 
 build: $(BUILDDIR)
 	@$(MAKE) -C $<

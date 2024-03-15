@@ -54,7 +54,7 @@ static void load_screen_image(
     return;
   }
   char file[64];
-  sprintf(file, "assets/screens/%u.qoi", handle->index + 1);
+  snprintf(file, sizeof(file), "assets/screens/%u.qoi", handle->index + 1);
   uint32_t width, height;
   switch (loadType) {
     case LOAD_LAZY:

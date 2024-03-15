@@ -1,1 +1,1 @@
-imageio==2.22.4
+imageio>=2.22.4

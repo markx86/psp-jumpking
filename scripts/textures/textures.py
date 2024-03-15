@@ -36,16 +36,16 @@ def swizzle(in_pixels):
     swizzled_pixels = np.zeros(bytes_width * height, dtype=np.uint8)
     for j in range(height):
         for i in range(bytes_width):
-            block_x = int(i / 16)
-            block_y = int(j / 8)
-            x = (i - block_x * 16)
-            y = (j - block_y * 8)
+            block_x = i >> 4
+            block_y = j >> 3
+            x = i - (block_x << 4)
+            y = j - (block_y << 3)
             block_index = block_x + (block_y * row_blocks)
             block_offset = block_index * 16 * 8;
             swizzled_pixels[block_offset + x + y * 16] = in_pixels[i + j * bytes_width]
     return swizzled_pixels.reshape(in_shape)
 
-def to_po2_size(size):
+def to_pow2_size(size):
     width2 = math.log2(size.x)
     height2 = math.log2(size.y)
     if width2 - int(width2) > 0:
@@ -107,7 +107,7 @@ class Tile:
 
     def _grow_horizontally(self, horizontal_delta):
         if self._xpad == "center":
-            horizontal_delta = round(horizontal_delta / 2)
+            horizontal_delta = horizontal_delta >> 1
         if self._xpad == "left" or self._xpad == "center":
             self._pixels = pad_arr(self._pixels, (0, -horizontal_delta))
         if self._xpad == "right" or self._xpad == "center":
@@ -115,7 +115,7 @@ class Tile:
     
     def _shrink_horizontally(self, horizontal_delta):
         if self._xpad == "center":
-            horizontal_delta = round(horizontal_delta / 2)
+            horizontal_delta = horizontal_delta >> 1
         if self._xpad == "left" or self._xpad == "center":
             for _ in range(horizontal_delta):
                 self._pixels = np.delete(self._pixels, 0, axis=1)
@@ -125,7 +125,7 @@ class Tile:
     
     def _grow_vertically(self, vertical_delta):
         if self._ypad == "center":
-            vertical_delta = round(vertical_delta / 2)
+            vertical_delta = vertical_delta >> 1
         if self._ypad == "top" or self._ypad == "center":
             self._pixels = pad_arr(self._pixels, (-vertical_delta, 0))
         if self._ypad == "bottom" or self._ypad == "center":
@@ -133,7 +133,7 @@ class Tile:
 
     def _shrink_vertically(self, vertical_delta):
         if self._ypad == "center":
-            vertical_delta = round(vertical_delta / 2)
+            vertical_delta = vertical_delta >> 1
         if self._ypad == "top" or self._ypad == "center":
             for _ in range(vertical_delta):
                 self._pixels = np.delete(self._pixels, 0, axis=0)
@@ -185,7 +185,7 @@ class Tilemap:
     def _generate_image(self, tiles, top_left, bottom_right):
         pixels = []
         desired_size = Vector2(bottom_right.x - top_left.x - 1, bottom_right.y - top_left.y - 1)
-        new_size = to_po2_size(desired_size)
+        new_size = to_pow2_size(desired_size)
         for tile in tiles:
             tile.crop_to(new_size)
             pixels.extend(tile.get_pixels())
@@ -193,7 +193,7 @@ class Tilemap:
         return rgba
 
     def extract(self, image):
-        print(" \-> extracting {} tiles from tilemap '{}'".format(
+        print(" \\-> extracting {} tiles from tilemap '{}'".format(
             self._total_tiles, self._name))
         tilestrip_images = []
         tiles_read = 0
@@ -223,7 +223,7 @@ class Screen:
         self._swizzle = optional_key(json_data, "swizzle", True)
     
     def extract(self, background_image, foreground_image=None):
-        print(" \-> extracting screen #{} {} foreground".format(
+        print(" \\-> extracting screen #{} {} foreground".format(
             self._number,
             "without" if foreground_image is None else "with"
         ))
@@ -232,7 +232,7 @@ class Screen:
         if foreground_image is not None:
             width = max(width, foreground_image.shape[1])
             height = max(height, foreground_image.shape[0])
-        new_size = to_po2_size(Vector2(width, height))
+        new_size = to_pow2_size(Vector2(width, height))
         x_delta = new_size.x - width
         y_delta = new_size.y - height
         rgba = pad_arr(background_image, (0, x_delta))
