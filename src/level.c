@@ -43,23 +43,30 @@ static __attribute__((
 
 static void
 screen_image_loaded_callback(void* data, uint32_t width, uint32_t height) {
-  screen_handle_t* handle = (screen_handle_t*)data;
+  screen_handle_t* handle;
+  handle = (screen_handle_t*)data;
   handle->has_foreground = height > LEVEL_SCREEN_HEIGHT;
 }
 
-static void load_screen_image(
+static void
+load_screen_image(
     screen_handle_t* handle,
-    screen_image_loading_type_t loadType) {
-  if (handle->index >= level.total_screens) {
-    return;
-  }
-  char file[64];
-  snprintf(file, sizeof(file), "assets/screens/%u.qoi", handle->index + 1);
+    screen_image_loading_type_t load_type) {
   uint32_t width, height;
-  switch (loadType) {
+  char file[64];
+
+  if (handle->index >= level.total_screens)
+    return;
+
+  snprintf(file, sizeof(file), "assets/screens/%u.qoi", handle->index + 1);
+
+  switch (load_type) {
     case LOAD_LAZY:
       loader_lazy_swap_texture_ram(
-          file, handle->image, &screen_image_loaded_callback, handle);
+          file,
+          handle->image,
+          &screen_image_loaded_callback,
+          handle);
       break;
     case LOAD_NOW:
       loader_swap_texture_ram(file, handle->image, &width, &height);
@@ -68,9 +75,10 @@ static void load_screen_image(
   }
 }
 
-void level_load(uint32_t start_screen) {
-  // Load the level data.
+void
+level_load(uint32_t start_screen) {
   uint32_t size;
+  // Load the level data.
   level.screens = loader_read_file("assets/level.bin", &size);
   level.total_screens = size / sizeof(level_screen_t);
   // Initialize screen texture handles.
@@ -85,23 +93,26 @@ void level_load(uint32_t start_screen) {
   level_get_screen(start_screen);
 }
 
-level_screen_t* level_get_screen(uint32_t index) {
+level_screen_t*
+level_get_screen(uint32_t index) {
+  level_screen_t* screen;
+  void* tmp;
   // Check if the index is valid (maybe we computed the wrong index?).
   if (index < level.total_screens) {
-    level_screen_t* screen = &level.screens[index];
+    screen = &level.screens[index];
     // Check if the screen data is intact
     // (it's a simple check but it's better than nothing).
-    if (screen->magic != LEVEL_SCREEN_MAGIC) {
+    if (screen->magic != LEVEL_SCREEN_MAGIC)
       panic(
-          "Invalid screen %u: expected magic %04X but found %04X", index,
-          LEVEL_SCREEN_MAGIC, screen->magic);
-    }
+          "Invalid screen %u: expected magic %04X but found %04X",
+          index,
+          LEVEL_SCREEN_MAGIC,
+          screen->magic);
     // Check if the screen is the same as the last we returned.
     // If it is we don't need to load any new textures.
     if (screen != last_screen_returned) {
       // If we need to load new textures we can
       // check which one we need to load.
-      void* tmp;
       last_screen_returned = screen;
       if (index == screen_handle_next.index) {
         // If the requested screen is the next one relative to the current
@@ -161,6 +172,7 @@ level_screen_t* level_get_screen(uint32_t index) {
       }
     }
   }
+
   return last_screen_returned;
 }
 
@@ -169,20 +181,26 @@ render_screen(vertex_t* vertices, uint32_t image_offset, int tcc) {
   // Bind the foreground texture.
   sceGuTexMode(GU_PSM_8888, 0, 0, GU_TRUE);
   sceGuTexImage(
-      0, LEVEL_SCREEN_IMAGEW, LEVEL_SCREEN_IMAGEH, LEVEL_SCREEN_IMAGEW,
+      0,
+      LEVEL_SCREEN_IMAGEW,
+      LEVEL_SCREEN_IMAGEH,
+      LEVEL_SCREEN_IMAGEW,
       screen_handle_current.image + image_offset);
   sceGuTexFunc(GU_TFX_REPLACE, tcc);
   sceGuTexFilter(GU_NEAREST, GU_NEAREST);
   // Draw the foreground.
   sceGuDrawArray(
-      GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL,
+      GU_SPRITES,
+      GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D,
+      2,
+      NULL,
       vertices);
 }
 
-void level_render_foreground_on_top(vertex_t* vertices) {
-  if (!screen_handle_current.has_foreground || vertices == NULL) {
+void
+level_render_foreground_on_top(vertex_t* vertices) {
+  if (!screen_handle_current.has_foreground || vertices == NULL)
     return;
-  }
   // Update the vertices to be on the layer above the background.
   vertices[0].z = 3;
   vertices[1].z = 3;
@@ -191,13 +209,18 @@ void level_render_foreground_on_top(vertex_t* vertices) {
   sceGuBlendFunc(GU_ADD, GU_SRC_ALPHA, GU_ONE_MINUS_SRC_ALPHA, 0, 0);
   // Call render stub
   render_screen(
-      vertices, LEVEL_SCREEN_IMAGEW * LEVEL_SCREEN_HEIGHT * 4, GU_TCC_RGBA);
+      vertices,
+      LEVEL_SCREEN_IMAGEW * LEVEL_SCREEN_HEIGHT * 4,
+      GU_TCC_RGBA);
   // Disable blending.
   sceGuDisable(GU_BLEND);
 }
 
-vertex_t* level_render_screen(short scroll) {
-  vertex_t* vertices = sceGuGetMemory(2 * sizeof(vertex_t));
+vertex_t*
+level_render_screen(short scroll) {
+  vertex_t* vertices;
+
+  vertices = sceGuGetMemory(2 * sizeof(vertex_t));
 
   vertices[0].x = 0;
   vertices[0].y = 0;
@@ -216,8 +239,11 @@ vertex_t* level_render_screen(short scroll) {
   return vertices;
 }
 
-void level_render_screen_lines_top(short scroll, short lines) {
-  vertex_t* vertices = sceGuGetMemory(2 * sizeof(vertex_t));
+void
+level_render_screen_lines_top(short scroll, short lines) {
+  vertex_t* vertices;
+
+  vertices = sceGuGetMemory(2 * sizeof(vertex_t));
 
   vertices[0].x = 0;
   vertices[0].y = 0;
@@ -242,10 +268,14 @@ void level_render_screen_lines_top(short scroll, short lines) {
   queue_display_buffer_update(0, scroll, PSP_SCREEN_WIDTH, lines);
 }
 
-void level_render_screen_lines_bottom(short scroll, short lines) {
-  vertex_t* vertices = sceGuGetMemory(2 * sizeof(vertex_t));
+void
+level_render_screen_lines_bottom(short scroll, short lines) {
+  vertex_t* vertices;
+  short offset;
 
-  short offset = PSP_SCREEN_HEIGHT - lines;
+  vertices = sceGuGetMemory(2 * sizeof(vertex_t));
+
+  offset = PSP_SCREEN_HEIGHT - lines;
 
   vertices[0].x = 0;
   vertices[0].y = offset;
@@ -270,49 +300,45 @@ void level_render_screen_lines_bottom(short scroll, short lines) {
   queue_display_buffer_update(0, offset + scroll, PSP_SCREEN_WIDTH, lines);
 }
 
-void level_force_clean_artifact_at(
-    short x,
-    short y,
-    short width,
-    short height) {
+void
+level_force_clean_artifact_at(short x, short y, short width, short height) {
   // Clamp x coordinate within the screen bounds.
-  if (x < 0) {
+  if (x < 0)
     x = 0;
-  } else if (x + width >= LEVEL_SCREEN_WIDTH) {
+  else if (x + width >= LEVEL_SCREEN_WIDTH)
     x = LEVEL_SCREEN_WIDTH - width;
-  }
 
   // Clamp y coordinate within the screen bounds.
-  if (y < 0) {
+  if (y < 0)
     y = 0;
-  } else if (y + height >= LEVEL_SCREEN_HEIGHT) {
+  else if (y + height >= LEVEL_SCREEN_HEIGHT)
     y = LEVEL_SCREEN_HEIGHT - height;
-  }
 
   queue_display_buffer_update(x, y, width, height);
 }
 
-vertex_t* level_render_screen_section(
+vertex_t*
+level_render_screen_section(
     short x,
     short y,
     short width,
     short height,
     uint32_t current_scroll) {
+  vertex_t* vertices;
+
   // Clamp x coordinate within the screen bounds.
-  if (x < 0) {
+  if (x < 0)
     x = 0;
-  } else if (x + width >= LEVEL_SCREEN_WIDTH) {
+  else if (x + width >= LEVEL_SCREEN_WIDTH)
     x = LEVEL_SCREEN_WIDTH - width;
-  }
 
   // Clamp y coordinate within the screen bounds.
-  if (y < 0) {
+  if (y < 0)
     y = 0;
-  } else if (y + height >= LEVEL_SCREEN_HEIGHT) {
+  else if (y + height >= LEVEL_SCREEN_HEIGHT)
     y = LEVEL_SCREEN_HEIGHT - height;
-  }
 
-  vertex_t* vertices = sceGuGetMemory(2 * sizeof(vertex_t));
+  vertices = sceGuGetMemory(2 * sizeof(vertex_t));
 
   vertices[0].u = x;
   vertices[0].v = y;
@@ -331,7 +357,8 @@ vertex_t* level_render_screen_section(
   return vertices;
 }
 
-void level_unload(void) {
+void
+level_unload(void) {
   loader_unload_file(level.screens);
   level.screens = NULL;
 }

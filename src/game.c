@@ -19,7 +19,8 @@ static king_screen_coords_t king;
 static screen_scroll_t scroll;
 static uint32_t framebuffer_index, frame_counter, current_screen_index;
 
-static void start(void) {
+static void
+start(void) {
   current_screen_index = 0;
   king.sx[0] = 0;
   king.sx[1] = 0;
@@ -46,10 +47,13 @@ static void start(void) {
   set_background_scroll(scroll.current);
 }
 
-static void update(float delta) {
+static void
+update(float delta) {
+  level_screen_t* screen;
+  uint32_t new_screen_index;
   // Update the player.
-  level_screen_t* screen = level_get_screen(current_screen_index);
-  uint32_t new_screen_index = current_screen_index;
+  screen = level_get_screen(current_screen_index);
+  new_screen_index = current_screen_index;
   king_update(delta, screen, &new_screen_index);
 
   // Check if we need to change the screen.
@@ -83,9 +87,11 @@ static void update(float delta) {
   }
 }
 
-static void render(void) {
-  vertex_t* foreground_vertices = NULL;
+static void
+render(void) {
+  vertex_t* foreground_vertices;
 
+  foreground_vertices = NULL;
   if (frame_counter < 2) {
     // Render the entire screen for the two frames.
     // This has to be done twice, one time for each
@@ -125,15 +131,18 @@ static void render(void) {
       set_background_scroll(scroll.current);
       // Workaround to clear scrolling artifacts.
       level_force_clean_artifact_at(
-          king.prev_sx[framebuffer_index], king.prev_sy[framebuffer_index],
-          KING_SPRITE_WIDTH, KING_SPRITE_HEIGHT);
+          king.prev_sx[framebuffer_index],
+          king.prev_sy[framebuffer_index],
+          KING_SPRITE_WIDTH,
+          KING_SPRITE_HEIGHT);
     }
 
     // Render new screen lines.
     if (scroll.current < scroll.min) {
       // If we're scrolling upwards, render the lines at the top of the screen.
       level_render_screen_lines_top(
-          scroll.current, scroll.min - scroll.current);
+          scroll.current,
+          scroll.min - scroll.current);
       // This value keeps track of the lowest scroll value ever reached
       // during the time the current screen has been shown. Remeber that
       // the lower the scroll value, the higher we are in the level screen.
@@ -142,7 +151,8 @@ static void render(void) {
       // If we're scrolling downwards, render the lines at the bottom of the
       // screen.
       level_render_screen_lines_bottom(
-          scroll.current, scroll.current - scroll.max);
+          scroll.current,
+          scroll.current - scroll.max);
       // This value keeps track of the highest scroll value ever reached
       // during the time the current screen has been shown. Remeber that
       // the higher the scroll value, the lower we are in the level screen.
@@ -156,8 +166,11 @@ static void render(void) {
     // Add a 4 pixel padding to account for the error introduced by the fixed
     // update loop.
     foreground_vertices = level_render_screen_section(
-        king.sx[framebuffer_index] - 2, king.sy[framebuffer_index] - 2,
-        KING_SPRITE_WIDTH + 4, KING_SPRITE_HEIGHT + 4, scroll.current);
+        king.sx[framebuffer_index] - 2,
+        king.sy[framebuffer_index] - 2,
+        KING_SPRITE_WIDTH + 4,
+        KING_SPRITE_HEIGHT + 4,
+        scroll.current);
   }
 
   king.prev_sx[framebuffer_index] = king.sx[framebuffer_index];
@@ -165,7 +178,9 @@ static void render(void) {
 
   // Render the player.
   king_render(
-      &king.sx[framebuffer_index], &king.sy[framebuffer_index], scroll.current);
+      &king.sx[framebuffer_index],
+      &king.sy[framebuffer_index],
+      scroll.current);
 
   // This has to be done after rendering the player, as the king's texture
   // has to be in the color buffer for transparency to work properly.
@@ -184,7 +199,8 @@ static void render(void) {
   framebuffer_index = !framebuffer_index;
 }
 
-static void end(void) {
+static void
+end(void) {
   king_destroy();
   level_unload();
 }

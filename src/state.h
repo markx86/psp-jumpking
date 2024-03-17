@@ -22,7 +22,8 @@ extern SceCtrlData _ctrl_data;
 extern SceCtrlLatch _latch_data;
 extern const game_state_t* _current_state;
 
-static inline void state_start(const game_state_t* new) {
+static inline void
+state_start(const game_state_t* new) {
   if (_current_state != NULL) {
     _current_state->end();
   }

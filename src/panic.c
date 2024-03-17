@@ -9,7 +9,8 @@
 extern SceCtrlData _ctrl_data;
 #endif
 
-void panic(const char* fmt, ...) {
+void
+panic(const char* fmt, ...) {
 #ifdef DEBUG
   va_list list;
   char msg[256];

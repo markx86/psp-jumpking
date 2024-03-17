@@ -31,7 +31,7 @@ typedef struct {
   qoi_color_t* dst;
 } qoi_job_descriptor_t;
 
-int qoi_start_job(qoi_job_descriptor_t* desc, void* src, void* dst);
+int qoi_init_job(qoi_job_descriptor_t* desc, void* src, void* dst);
 int qoi_lazy_decode(qoi_job_descriptor_t* desc);
 int qoi_decode(void* src, void* dst, uint32_t* width, uint32_t* height);
 

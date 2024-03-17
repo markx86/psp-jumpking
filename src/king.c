@@ -117,61 +117,73 @@ static char block_collision_data[] = {
 static float slope_normals[4][2] =
     {{-1.0f, -1.0f}, {+1.0f, -1.0f}, {-1.0f, +1.0f}, {+1.0f, +1.0f}};
 
-static short check_collisions(
+static short
+check_collisions(
     short sx,
     short sy,
     level_screen_t* screen,
     collision_info_t* info) {
-  short collisions = 0;
-  short positive_direction_x = velocity_x > 0.0f;
-  short positive_direction_y = velocity_y < 0.0f;
+  short collisions;
+  short positive_direction_x, positive_direction_y;
+  short border_x, border_y;
+  short min_dist2, dist2;
+  short ox, oy, mx, my, cx, cy, csx, csy;
+  level_screen_block_t block;
+
   sy -= KING_HITBOX_HALFH;
-  short border_x =
+  collisions = 0;
+
+  positive_direction_x = velocity_x > 0.0f;
+  positive_direction_y = velocity_y < 0.0f;
+
+  border_x =
       sx + ((positive_direction_x) ? +KING_HITBOX_HALFW : -KING_HITBOX_HALFW);
-  short border_y =
+  border_y =
       sy + ((positive_direction_y) ? +KING_HITBOX_HALFH : -KING_HITBOX_HALFH);
+
   info->tl_sx = (positive_direction_x) ? -1 : border_x;
   info->tl_sy = (positive_direction_y) ? -1 : border_y;
   info->br_sx = (positive_direction_x) ? border_x : -1;
   info->br_sy = (positive_direction_y) ? border_y : -1;
-  short min_dist2 = -1;
-  for (short oy = -KING_HITBOX_HALFH; oy < KING_HITBOX_HALFH;
+
+  min_dist2 = -1;
+  for (oy = -KING_HITBOX_HALFH; oy < KING_HITBOX_HALFH;
        oy += LEVEL_BLOCK_SIZE) {
-    for (short ox = -KING_HITBOX_HALFW; ox < KING_HITBOX_HALFW;
+    for (ox = -KING_HITBOX_HALFW; ox < KING_HITBOX_HALFW;
          ox += LEVEL_BLOCK_SIZE) {
-      short cx = sx + ox;
-      short cy = sy + oy;
-      short mx = LEVEL_COORDS_SCREEN2MAP(cx);
-      short my = LEVEL_COORDS_SCREEN2MAP(cy);
-      if (mx < 0 || mx >= LEVEL_SCREEN_BLOCK_WIDTH) {
+      cx = sx + ox;
+      cy = sy + oy;
+      mx = LEVEL_COORDS_SCREEN2MAP(cx);
+      my = LEVEL_COORDS_SCREEN2MAP(cy);
+      if (mx < 0 || mx >= LEVEL_SCREEN_BLOCK_WIDTH)
         continue;
-      }
-      if (my < 0 || my >= LEVEL_SCREEN_BLOCK_HEIGHT) {
+      if (my < 0 || my >= LEVEL_SCREEN_BLOCK_HEIGHT)
         continue;
-      }
-      level_screen_block_t block = screen->blocks[my][mx];
+
+      block = screen->blocks[my][mx];
       info->modifiers |= block_collision_data[block];
       if (LEVEL_BLOCK_ISSOLID(block)) {
         ++collisions;
-        short csx = mx << 3;
-        short csy = my << 3;
-        if (positive_direction_x) {
+        csx = LEVEL_COORDS_MAP2SCREEN(mx);
+        csy = LEVEL_COORDS_MAP2SCREEN(my);
+
+        if (positive_direction_x)
           info->tl_sx =
               (info->tl_sx < 0 || csx < info->tl_sx) ? csx : info->tl_sx;
-        } else {
+        else
           info->br_sx = (info->br_sx < 0 || csx > info->br_sx)
                             ? csx + LEVEL_BLOCK_SIZE
                             : info->br_sx;
-        }
-        if (positive_direction_y) {
+
+        if (positive_direction_y)
           info->tl_sy =
               (info->tl_sy < 0 || csy < info->tl_sy) ? csy : info->tl_sy;
-        } else {
+        else
           info->br_sy = (info->br_sy < 0 || csy > info->br_sy)
                             ? csy + LEVEL_BLOCK_SIZE
                             : info->br_sy;
-        }
-        short dist2 = ox * ox + oy * oy;
+
+        dist2 = ox * ox + oy * oy;
         if (min_dist2 < 0 || dist2 < min_dist2) {
           min_dist2 = dist2;
           info->block = block;
@@ -179,49 +191,54 @@ static short check_collisions(
       }
     }
   }
+
   info->width = info->br_sx - info->tl_sx;
   info->height = info->br_sy - info->tl_sy;
+
   return collisions;
 }
 
-static void do_collision(float new_x, float new_y, level_screen_t* screen) {
-  // Convert new player position to screen coordinates.
-  short new_sx = ((short)new_x) + (LEVEL_SCREEN_WIDTH / 2);
-  short new_sy = LEVEL_SCREEN_HEIGHT - ((short)new_y);
+static void
+do_collision(float new_x, float new_y, level_screen_t* screen) {
+  short new_sx, new_sy;
+  short collisions;
+  short was_vertical_collision, was_diagonal_collision;
+  short abs_vx, abs_vy;
+  short vertical_direction, horizontal_direction;
   collision_info_t info;
 
+  // Convert new player position to screen coordinates.
+  new_sx = ((short)new_x) + (LEVEL_SCREEN_WIDTH / 2);
+  new_sy = LEVEL_SCREEN_HEIGHT - ((short)new_y);
+
   // Check if the player has collided with something.
-  short collisions = check_collisions(new_sx, new_sy, screen, &info);
+  collisions = check_collisions(new_sx, new_sy, screen, &info);
   if (collisions) {
     // If they have, check if the collision was along the X or the Y axis.
-    short was_vertical_collision;
-    short is_diagonal_collision = info.width == info.height;
-    short abs_vx =
-        (velocity_x > 0.0f) ? velocity_x : -velocity_x; // |velocity_x|
-    short abs_vy =
-        (velocity_y > 0.0f) ? velocity_y : -velocity_y; // |velocity_y|
+    was_diagonal_collision = info.width == info.height;
+    abs_vx = (velocity_x > 0.0f) ? velocity_x : -velocity_x; // |velocity_x|
+    abs_vy = (velocity_y > 0.0f) ? velocity_y : -velocity_y; // |velocity_y|
     if (info.width > info.height ||
-        (is_diagonal_collision && abs_vy >= abs_vx)) {
+        (was_diagonal_collision && abs_vy >= abs_vx)) {
       // A collision is vertical if the intersection rectangle
       // is wider than it is tall. If the intersection is a square,
       // the collision is considered vertical if the Y component of the
       // velocity vector is greater (or equal) than its X component.
       was_vertical_collision = 1;
-      short vertical_direction = (velocity_y < 0.0f) ? +1 : -1;
+      vertical_direction = (velocity_y < 0.0f) ? +1 : -1;
       new_sy -= vertical_direction * info.height;
       new_y = (float)(LEVEL_SCREEN_HEIGHT - new_sy);
     } else if (
         info.width < info.height ||
-        (is_diagonal_collision && abs_vx > abs_vy)) {
+        (was_diagonal_collision && abs_vx > abs_vy)) {
       // A collision is horizontal if the intersection rectangle
       // is taller than it is wide. If the intersection is a square,
       // the collision is considered horizontal if the X component
       // of the velocity vector is greater than its Y component.
       was_vertical_collision = 0;
-      if (info.width > LEVEL_BLOCK_SIZE) {
+      if (info.width > LEVEL_BLOCK_SIZE)
         info.width = LEVEL_BLOCK_SIZE;
-      }
-      short horizontal_direction = (velocity_x > 0.0f) ? +1 : -1;
+      horizontal_direction = (velocity_x > 0.0f) ? +1 : -1;
       new_sx -= horizontal_direction * info.width;
       new_x = (float)(new_sx - (short)(LEVEL_SCREEN_WIDTH / 2));
     }
@@ -231,9 +248,8 @@ static void do_collision(float new_x, float new_y, level_screen_t* screen) {
     is_stunned = !info.is_slope && !in_air && fall_time > KING_MAX_FALL_TIME;
     stun_time = is_stunned * KING_STUN_TIME;
     hit_wall_midair = (in_air || velocity_y > 0.0f) && !was_vertical_collision;
-    if (info.is_slope || (was_vertical_collision && velocity_y > 0.0f)) {
+    if (info.is_slope || (was_vertical_collision && velocity_y > 0.0f))
       fall_time = 0.0f;
-    }
     velocity_x = (!was_vertical_collision || velocity_y > 0.0f) * -velocity_x *
                  KING_WALL_BOUNCE;
     velocity_y *= !was_vertical_collision;
@@ -254,7 +270,8 @@ static void do_collision(float new_x, float new_y, level_screen_t* screen) {
   }
 }
 
-void king_create(void) {
+void
+king_create(void) {
   all_sprites =
       loader_load_texture_vram("assets/king/base/regular.qoi", NULL, NULL);
   // Set the player starting position.
@@ -288,10 +305,14 @@ void king_create(void) {
   current_sprite = KING_GET_SPRITE(current_sprite_index);
 }
 
-void king_update(
-    float delta,
-    level_screen_t* screen,
-    uint32_t* out_screen_index) {
+void
+king_update(float delta, level_screen_t* screen, uint32_t* out_screen_index) {
+  int map_x, map_y;
+  int ix;
+  float new_x, new_y;
+  level_screen_block_t block;
+  sprite_index_t new_sprite_index;
+
   // Update status
   {
     if (velocity_y) {
@@ -308,18 +329,16 @@ void king_update(
         jump_power = 0.0f;
         // Also reset the fall time.
         fall_time = 0.0f;
-      } else if (fall_time < KING_MAX_FALL_TIME) {
+      } else if (fall_time < KING_MAX_FALL_TIME)
         // If the player is falling (meaning the vertical velocity is negative),
         // count up the fall time.
         fall_time += delta;
-      }
     } else {
       // Check if the player is standing on solid ground.
-      int map_x = LEVEL_COORDS_SCREEN2MAP(screen_x);
-      int map_y = LEVEL_COORDS_SCREEN2MAP(screen_y);
-      for (int x = -KING_HITBOX_BLOCK_HALFW; x <= KING_HITBOX_BLOCK_HALFW;
-           x++) {
-        level_screen_block_t block = screen->blocks[map_y][map_x + x];
+      map_x = LEVEL_COORDS_SCREEN2MAP(screen_x);
+      map_y = LEVEL_COORDS_SCREEN2MAP(screen_y);
+      for (ix = -KING_HITBOX_BLOCK_HALFW; ix <= KING_HITBOX_BLOCK_HALFW; ix++) {
+        block = screen->blocks[map_y][map_x + ix];
         in_air |= LEVEL_BLOCK_ISSOLID(block) && !LEVEL_BLOCK_ISSLOPE(block);
       }
       in_air = !in_air;
@@ -348,10 +367,9 @@ void king_update(
         // If the direction is non 0, reset the leniency time.
         leniency_frames = KING_JUMP_LENIENCY_FRAMES;
         leniency_direction = direction;
-      } else {
+      } else
         // Otherwise, count down the leniency time.
         --leniency_frames;
-      }
       // Check if the player is trying to jump.
       jump_pressed = (input.Buttons & PSP_CTRL_CROSS);
     }
@@ -359,15 +377,13 @@ void king_update(
     // Update status
     {
       // Update stunned timer
-      if (stun_time > 0) {
+      if (stun_time > 0)
         stun_time -= delta;
-      }
 
       // Un-stun the player if input was recieved
       // and the cooldown time has elapsed.
-      if (is_stunned && stun_time <= 0 && (jump_pressed || direction)) {
+      if (is_stunned && stun_time <= 0 && (jump_pressed || direction))
         is_stunned = 0;
-      }
 
       // Check if the player is pressing the jump button
       // and, if true, build up jump power.
@@ -380,27 +396,25 @@ void king_update(
     // Update physics
     {
       if (!is_stunned) {
-        if (jump_pressed && !max_jump_power_reached) {
+        if (jump_pressed && !max_jump_power_reached)
           // Freeze the player if the jump button is pressed.
           velocity_x = 0.0f;
-        } else {
+        else {
           if (jump_power) {
             // If the jump button was released...
             // - set the vertical speed to the jump power that was built up
             velocity_y = jump_power;
             // - check if the input direction is 0. If it is, check if the
             //   last non 0 direction was within the last two frames
-            if (leniency_frames > 0 && direction == 0) {
+            if (leniency_frames > 0 && direction == 0)
               // - if it was, override the player's direction
               direction = leniency_direction;
-            }
             // - set the horizontal speed to KING_JUMP_HSPEED in the direction
             //   the player is facing
             velocity_x = direction * KING_JUMP_HSPEED;
-          } else {
+          } else
             // Otherwise, walk at normal speed.
             velocity_x = direction * KING_WALK_SPEED;
-          }
         }
       }
     }
@@ -411,15 +425,14 @@ void king_update(
     {
       // If the falling terminal velocity has not been reached,
       // apply gravity.
-      if (velocity_y > -KING_MAX_FALL_SPEED) {
+      if (velocity_y > -KING_MAX_FALL_SPEED)
         velocity_y -= KING_GRAVITY;
-      }
     }
   }
 
   // Compute new player position.
-  float new_x = world_x + velocity_x;
-  float new_y = world_y + velocity_y;
+  new_x = world_x + velocity_x;
+  new_y = world_y + velocity_y;
 
   // If the player is within the leve screen bounds,
   // handle collisions.
@@ -452,24 +465,22 @@ void king_update(
     // If the player is not stunned...
     if (!is_stunned) {
       // Flip the sprite according to the player direction.
-      if (direction == +1) {
+      if (direction == +1)
         sprite_ucoord_offset = 0;
-      } else if (direction == -1) {
+      else if (direction == -1)
         sprite_ucoord_offset = KING_SPRITE_WIDTH;
-      }
     }
 
     // Find the appropriate sprite index for the current frame.
-    sprite_index_t new_sprite_index;
-    if (jump_power) {
+    if (jump_power)
       new_sprite_index = SPRITE_CHARGING;
-    } else if (is_stunned) {
+    else if (is_stunned)
       new_sprite_index = SPRITE_STUNNED;
-    } else if (hit_wall_midair) {
+    else if (hit_wall_midair)
       new_sprite_index = SPRITE_HITWALLMIDAIR;
-    } else if (in_air) {
+    else if (in_air)
       new_sprite_index = (velocity_y > 0.0f) ? SPRITE_JUMPING : SPRITE_FALLING;
-    } else if (velocity_x && direction) {
+    else if (velocity_x && direction) {
       walk_anim_cycle += 1;
       switch (walk_anim_cycle / 4) {
         case 0:
@@ -504,8 +515,11 @@ void king_update(
   }
 }
 
-void king_render(short* out_sx, short* out_sy, uint32_t current_scroll) {
-  vertex_t* vertices = (vertex_t*)sceGuGetMemory(2 * sizeof(vertex_t));
+void
+king_render(short* out_sx, short* out_sy, uint32_t current_scroll) {
+  vertex_t* vertices;
+
+  vertices = (vertex_t*)sceGuGetMemory(2 * sizeof(vertex_t));
   // Translate the player's level screen coordinates
   // to the PSP's screen coordinates.
   vertices[0].x = screen_x - KING_SPRITE_HALFW;
@@ -529,13 +543,19 @@ void king_render(short* out_sx, short* out_sy, uint32_t current_scroll) {
   // Set the texture as the current selected sprite for the player.
   sceGuTexMode(GU_PSM_8888, 0, 0, GU_FALSE);
   sceGuTexImage(
-      0, KING_SPRITE_WIDTH, KING_SPRITE_HEIGHT, KING_SPRITE_WIDTH,
+      0,
+      KING_SPRITE_WIDTH,
+      KING_SPRITE_HEIGHT,
+      KING_SPRITE_WIDTH,
       current_sprite);
   sceGuTexFunc(GU_TFX_REPLACE, GU_TCC_RGBA);
   sceGuTexFilter(GU_NEAREST, GU_NEAREST);
   // Draw it!
   sceGuDrawArray(
-      GU_SPRITES, GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D, 2, NULL,
+      GU_SPRITES,
+      GU_TEXTURE_16BIT | GU_VERTEX_16BIT | GU_TRANSFORM_2D,
+      2,
+      NULL,
       vertices);
   // Disable blending since it's not needed anymore.
   sceGuDisable(GU_BLEND);
@@ -550,6 +570,7 @@ void king_render(short* out_sx, short* out_sy, uint32_t current_scroll) {
   *out_sy = screen_y;
 }
 
-void king_destroy(void) {
+void
+king_destroy(void) {
   loader_unload_texture_vram(all_sprites);
-};
+}

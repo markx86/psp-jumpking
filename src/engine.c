@@ -24,18 +24,20 @@ SceCtrlData _ctrl_data;
 SceCtrlLatch _latch_data;
 const game_state_t* _current_state = NULL;
 
-static char display_list[DISPLAY_LIST_SIZE] __attribute__((aligned(64)));
+static __attribute__((aligned(64))) char display_list[DISPLAY_LIST_SIZE];
 static disp_buffer_update_t disp_buffer_updates[8];
 static int running, clear_flags;
 static int queued_disp_buffer_updates;
 static void *draw_buffer, *disp_buffer, *depth_buffer;
 
-static int exit_callback(int arg1, int arg2, void* common) {
+static int
+exit_callback(int arg1, int arg2, void* common) {
   running = 0;
   return 0;
 }
 
-static int exit_callback_thread(SceSize args, void* argp) {
+static int
+exit_callback_thread(SceSize args, void* argp) {
   int callbackId =
       sceKernelCreateCallback("exit_callback", &exit_callback, NULL);
   sceKernelRegisterExitCallback(callbackId);
@@ -43,45 +45,68 @@ static int exit_callback_thread(SceSize args, void* argp) {
   return 0;
 }
 
-static int setup_callbacks(void) {
-  int exit_callback_thread_id = sceKernelCreateThread(
-      "exit_callback_thread_id", &exit_callback_thread, 0x11, 0xFA0, 0, NULL);
+static int
+setup_callbacks(void) {
+  int exit_callback_thread_id;
+
+  exit_callback_thread_id = sceKernelCreateThread(
+      "exit_callback_thread_id",
+      &exit_callback_thread,
+      0x11,
+      0xFA0,
+      0,
+      NULL);
   if (exit_callback_thread_id >= 0) {
     sceKernelStartThread(exit_callback_thread_id, 0, NULL);
     return 1;
   }
+
   return 0;
 }
 
-static void frame_start(void) {
+static void
+frame_start(void) {
+  uint32_t *disp, *draw;
+  int i;
+
   sceGuStart(GU_DIRECT, display_list);
   sceGuClear(clear_flags);
 
-  uint32_t* disp = vabsptr(disp_buffer);
-  uint32_t* draw = vabsptr(draw_buffer);
-  for (int i = 0; i < queued_disp_buffer_updates; i++) {
+  disp = vabsptr(disp_buffer);
+  draw = vabsptr(draw_buffer);
+  for (i = 0; i < queued_disp_buffer_updates; i++) {
     disp_buffer_update_t* u = &disp_buffer_updates[i];
     sceGuCopyImage(
-        GU_PSM_8888, u->x, u->y, u->width, u->height, BUFFER_WIDTH, draw, u->x,
-        u->y, BUFFER_WIDTH, disp);
+        GU_PSM_8888,
+        u->x,
+        u->y,
+        u->width,
+        u->height,
+        BUFFER_WIDTH,
+        draw,
+        u->x,
+        u->y,
+        BUFFER_WIDTH,
+        disp);
   }
   queued_disp_buffer_updates = 0;
 }
 
-static void frame_end(void) {
+static void
+frame_end(void) {
   // Start rendering.
   sceGuFinish();
   // Lazy load or wait for the next V-blank interval.
-  if (loader_lazy_load()) {
+  if (loader_lazy_load())
     sceDisplayWaitVblankStartCB();
-  }
   // Wait for the frame to finish rendering.
   sceGuSync(GU_SYNC_WHAT_DONE, GU_SYNC_FINISH);
   // Swap the buffers.
   sceGuSwapBuffers();
 }
 
-static void gu_start(void) {
+static void
+gu_start(void) {
   // Reserve VRAM for draw, display and depth buffers.
   draw_buffer = mem_to_vmem(
       alloc_vmem(get_texture_size(BUFFER_WIDTH, BUFFER_HEIGHT, GU_PSM_8888)));
@@ -95,14 +120,19 @@ static void gu_start(void) {
   // Set up the buffers.
   sceGuDrawBuffer(GU_PSM_8888, draw_buffer, BUFFER_WIDTH);
   sceGuDispBuffer(
-      PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, disp_buffer, BUFFER_WIDTH);
+      PSP_SCREEN_WIDTH,
+      PSP_SCREEN_HEIGHT,
+      disp_buffer,
+      BUFFER_WIDTH);
   sceGuDepthBuffer(depth_buffer, BUFFER_WIDTH);
   // Set up viewport.
   sceGuOffset(
       (VIRTUAL_WIDTH - PSP_SCREEN_WIDTH) / 2,
       (VIRTUAL_HEIGHT - PSP_SCREEN_HEIGHT) / 2);
   sceGuViewport(
-      VIRTUAL_WIDTH / 2, VIRTUAL_HEIGHT / 2, PSP_SCREEN_WIDTH,
+      VIRTUAL_WIDTH / 2,
+      VIRTUAL_HEIGHT / 2,
+      PSP_SCREEN_WIDTH,
       PSP_SCREEN_HEIGHT);
   sceGuScissor(0, 0, PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT);
   sceGuEnable(GU_SCISSOR_TEST);
@@ -125,7 +155,8 @@ static void gu_start(void) {
   sceGuDisplay(GU_TRUE);
 }
 
-static void gu_end(void) {
+static void
+gu_end(void) {
   sceGuDisplay(GU_FALSE);
   sceGuTerm();
   // Remember to free the buffers.
@@ -134,7 +165,8 @@ static void gu_end(void) {
   free_vmem(vmem_to_mem(draw_buffer));
 }
 
-static void start(void) {
+static void
+start(void) {
   running = 1;
   // Set the default clear flags.
   clear_flags = GU_DEPTH_BUFFER_BIT | GU_COLOR_BUFFER_BIT;
@@ -151,18 +183,21 @@ static void start(void) {
   state_start(&game_state);
 }
 
-static void end(void) {
+static void
+end(void) {
   state_end();
   gu_end();
   loader_end();
   sceKernelExitGame();
 }
 
-void set_clear_flags(int flags) {
+void
+set_clear_flags(int flags) {
   clear_flags = flags;
 }
 
-void queue_display_buffer_update(short x, short y, short w, short h) {
+void
+queue_display_buffer_update(short x, short y, short w, short h) {
   disp_buffer_updates[queued_disp_buffer_updates].x = x;
   disp_buffer_updates[queued_disp_buffer_updates].y = y;
   disp_buffer_updates[queued_disp_buffer_updates].width = w;
@@ -170,24 +205,32 @@ void queue_display_buffer_update(short x, short y, short w, short h) {
   ++queued_disp_buffer_updates;
 }
 
-void set_background_scroll(short offset) {
-  if (offset > PSP_SCREEN_MAX_SCROLL) {
+void
+set_background_scroll(short offset) {
+  uint32_t buffer_offset;
+
+  if (offset > PSP_SCREEN_MAX_SCROLL)
     panic(
-        "Scroll value too big. Got %d but the maximum is %d", offset,
+        "Scroll value too big. Got %d but the maximum is %d",
+        offset,
         PSP_SCREEN_MAX_SCROLL);
-  } else if (offset < 0) {
+  else if (offset < 0)
     panic("Scroll value is negative. Got %d", offset);
-  }
-  uint32_t bufferOffset =
-      get_texture_size(BUFFER_WIDTH, (uint32_t)offset, GU_PSM_8888);
+
+  buffer_offset = get_texture_size(BUFFER_WIDTH, (uint32_t)offset, GU_PSM_8888);
   sceGuDrawBuffer(
-      GU_PSM_8888, ((char*)draw_buffer) + bufferOffset, BUFFER_WIDTH);
+      GU_PSM_8888,
+      ((char*)draw_buffer) + buffer_offset,
+      BUFFER_WIDTH);
   sceGuDispBuffer(
-      PSP_SCREEN_WIDTH, PSP_SCREEN_HEIGHT, ((char*)disp_buffer) + bufferOffset,
+      PSP_SCREEN_WIDTH,
+      PSP_SCREEN_HEIGHT,
+      ((char*)disp_buffer) + buffer_offset,
       BUFFER_WIDTH);
 }
 
-int main(void) {
+int
+main(void) {
   start();
   const float delta = 1.0f / sceDisplayGetFramePerSec();
   while (running) {
