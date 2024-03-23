@@ -1,6 +1,6 @@
 #include "king.h"
-#include "state.h"
 #include <string.h>
+#include <math.h>
 
 // Hitbox sizes
 #define KING_HITBOX_WIDTH 18
@@ -13,7 +13,8 @@
 #define KING_HITBOX_BLOCK_HALFH (KING_HITBOX_BLOCK_HEIGHT / 2)
 
 // Physics constants
-#define KING_JUMP_HEIGHT 153.0f
+// TODO: Check if this is still needed
+// #define KING_JUMP_HEIGHT 153.0f
 #define KING_JUMP_VSPEED 9.0f
 #define KING_JUMP_HSPEED 3.5f
 #define KING_WALK_SPEED 1.5f
@@ -91,7 +92,8 @@ static short screen_x, screen_y;
 // Input
 static short direction, jump_pressed, leniency_frames, leniency_direction;
 // Flags
-static char in_air, hit_wall_midair, max_jump_power_reached, is_stunned;
+static char in_air, stunned_midair, max_jump_power_reached, is_stunned,
+    is_sliding, was_sliding;
 // Status
 static float jump_power, stun_time, fall_time;
 // Graphics
@@ -114,8 +116,14 @@ static char block_collision_data[] = {
     COLLMOD_WATER,
     COLLMOD_QUARK};
 
-static float slope_normals[4][2] =
-    {{-1.0f, -1.0f}, {+1.0f, -1.0f}, {-1.0f, +1.0f}, {+1.0f, +1.0f}};
+#define COS_45 0.70710678119f
+#define SIN_45 COS_45
+
+static float slope_dir[][2] = {
+    [SCREENBLOCK_SLOPE_TL] = {-COS_45, -SIN_45},
+    [SCREENBLOCK_SLOPE_TR] = {+COS_45, -SIN_45},
+    [SCREENBLOCK_SLOPE_BL] = {-COS_45, +SIN_45},
+    [SCREENBLOCK_SLOPE_BR] = {+COS_45, +SIN_45}};
 
 static short
 check_collisions(
@@ -123,6 +131,7 @@ check_collisions(
     short sy,
     level_screen_t* screen,
     collision_info_t* info) {
+  uint8_t coll_mods;
   short collisions;
   short positive_direction_x, positive_direction_y;
   short border_x, border_y;
@@ -147,6 +156,7 @@ check_collisions(
   info->br_sy = (positive_direction_y) ? border_y : -1;
 
   min_dist2 = -1;
+  info->modifiers = 0;
   for (oy = -KING_HITBOX_HALFH; oy < KING_HITBOX_HALFH;
        oy += LEVEL_BLOCK_SIZE) {
     for (ox = -KING_HITBOX_HALFW; ox < KING_HITBOX_HALFW;
@@ -161,7 +171,7 @@ check_collisions(
         continue;
 
       block = screen->blocks[my][mx];
-      info->modifiers |= block_collision_data[block];
+      coll_mods = block_collision_data[block];
       if (LEVEL_BLOCK_ISSOLID(block)) {
         ++collisions;
         csx = LEVEL_COORDS_MAP2SCREEN(mx);
@@ -184,11 +194,14 @@ check_collisions(
                             : info->br_sy;
 
         dist2 = ox * ox + oy * oy;
-        if (min_dist2 < 0 || dist2 < min_dist2) {
+        if (coll_mods & COLLMOD_SLOPE && !info->is_slope)
+          info->block = block;
+        else if (min_dist2 < 0 || dist2 <= min_dist2) {
           min_dist2 = dist2;
           info->block = block;
         }
       }
+      info->modifiers |= coll_mods;
     }
   }
 
@@ -198,13 +211,19 @@ check_collisions(
   return collisions;
 }
 
+static inline float
+vector_dot(float v1x, float v1y, float v2x, float v2y) {
+  return v1x * v2x + v1y * v2y;
+}
+
 static void
 do_collision(float new_x, float new_y, level_screen_t* screen) {
   short new_sx, new_sy;
   short collisions;
-  short was_vertical_collision, was_diagonal_collision;
-  short abs_vx, abs_vy;
+  short was_vertical_collision, was_diagonal_collision, collided_with_head;
   short vertical_direction, horizontal_direction;
+  float abs_vx, abs_vy, abs_v;
+  float dir_x, dir_y, dot;
   collision_info_t info;
 
   // Convert new player position to screen coordinates.
@@ -226,8 +245,10 @@ do_collision(float new_x, float new_y, level_screen_t* screen) {
       // velocity vector is greater (or equal) than its X component.
       was_vertical_collision = 1;
       vertical_direction = (velocity_y < 0.0f) ? +1 : -1;
-      new_sy -= vertical_direction * info.height;
-      new_y = (float)(LEVEL_SCREEN_HEIGHT - new_sy);
+      if (!is_sliding || !was_sliding) {
+        new_sy -= vertical_direction * info.height;
+        new_y = (float)(LEVEL_SCREEN_HEIGHT - new_sy);
+      }
     } else if (
         info.width < info.height ||
         (was_diagonal_collision && abs_vx > abs_vy)) {
@@ -239,22 +260,71 @@ do_collision(float new_x, float new_y, level_screen_t* screen) {
       if (info.width > LEVEL_BLOCK_SIZE)
         info.width = LEVEL_BLOCK_SIZE;
       horizontal_direction = (velocity_x > 0.0f) ? +1 : -1;
-      new_sx -= horizontal_direction * info.width;
-      new_x = (float)(new_sx - (short)(LEVEL_SCREEN_WIDTH / 2));
+      if (!is_sliding || !was_sliding) {
+        new_sx -= horizontal_direction * info.width;
+        new_x = (float)(new_sx - (short)(LEVEL_SCREEN_WIDTH / 2));
+      }
     }
+    collided_with_head = was_vertical_collision && velocity_y > 0.0f;
 
     // TODO: Better collision handling.
-    in_air = in_air && (!was_vertical_collision || velocity_y > 0.0f);
-    is_stunned = !info.is_slope && !in_air && fall_time > KING_MAX_FALL_TIME;
-    stun_time = is_stunned * KING_STUN_TIME;
-    hit_wall_midair = (in_air || velocity_y > 0.0f) && !was_vertical_collision;
-    if (info.is_slope || (was_vertical_collision && velocity_y > 0.0f))
-      fall_time = 0.0f;
-    velocity_x = (!was_vertical_collision || velocity_y > 0.0f) * -velocity_x *
-                 KING_WALL_BOUNCE;
-    velocity_y *= !was_vertical_collision;
+    if (info.is_slope) {
+      // if (is_sliding)
+      //   goto update_coords;
+
+      if (!is_sliding) {
+        dir_x = slope_dir[info.block][0];
+        dir_y = slope_dir[info.block][1];
+        dot = vector_dot(velocity_x, velocity_y, dir_x, -dir_y);
+        if (dot >= 0.0f)
+          goto else_case;
+      }
+
+      // Update physics
+      {
+        // TODO: Can we do this without sqrt()?
+        abs_v = sqrtf(velocity_x * velocity_x + velocity_y * velocity_y);
+        velocity_x = dir_x * abs_v;
+        velocity_y = dir_y * abs_v;
+
+        new_x = world_x + velocity_x;
+        new_y = world_y + velocity_y;
+      }
+
+      // Update graphics
+      {
+        new_sx = (short)(new_x + (float)LEVEL_SCREEN_WIDTH / 2);
+        new_sy = (short)(LEVEL_SCREEN_HEIGHT - new_y);
+      }
+
+      // Update status
+      {
+        is_sliding = 1;
+        stunned_midair = 1;
+        in_air = 0;
+      }
+    } else if (!is_sliding) {
+    else_case:
+      // Update status
+      in_air = in_air && (!was_vertical_collision || collided_with_head);
+      is_stunned = !in_air && fall_time > KING_MAX_FALL_TIME;
+      stun_time = is_stunned * KING_STUN_TIME;
+      stunned_midair = (in_air || velocity_y > 0.0f) && !was_vertical_collision;
+
+      // Update velocity
+      if (!was_sliding) {
+        velocity_x = (!was_vertical_collision || collided_with_head) *
+                     velocity_x * KING_WALL_BOUNCE;
+        velocity_x = (collided_with_head) ? velocity_x : -velocity_x;
+      }
+      velocity_y = (!was_vertical_collision) ? velocity_y
+                   : (collided_with_head)    ? -0.001f
+                                             : 0.0f;
+    }
+    was_sliding = is_sliding;
   }
 
+update_coords:
   // Update physics
   {
     // Update player position.
@@ -275,8 +345,10 @@ king_create(void) {
   all_sprites =
       loader_load_texture_vram("assets/king/base/regular.qoi", NULL, NULL);
   // Set the player starting position.
-  world_x = 0.0f;
-  world_y = 32.0f;
+  // world_x = 0.0f;
+  // world_y = 32.0f;
+  world_x = -48.0f;
+  world_y = 120.0f;
   // Set the player initial speed.
   velocity_x = 0.0f;
   velocity_y = 0.0f;
@@ -290,9 +362,11 @@ king_create(void) {
   leniency_direction = 0;
   // Reset flags.
   in_air = 0;
-  hit_wall_midair = 0;
+  stunned_midair = 0;
   max_jump_power_reached = 0;
   is_stunned = 1;
+  is_sliding = 0;
+  was_sliding = 0;
   // Reset status.
   jump_power = 0.0f;
   stun_time = 0.0f;
@@ -307,23 +381,22 @@ king_create(void) {
 
 void
 king_update(float delta, level_screen_t* screen, uint32_t* out_screen_index) {
-  int map_x, map_y;
-  int ix;
-  float new_x, new_y;
+  int ox, oy, mx, my;
+  int on_blocks, on_slopes;
+  float new_x, new_y, max_fall_velocity;
   level_screen_block_t block;
   sprite_index_t new_sprite_index;
 
   // Update status
   {
-    if (velocity_y) {
+    if (velocity_y != 0.0f && !is_sliding) {
       // If the vertical velocity is not zero,
       // the player is in the air.
       in_air = 1;
       if (velocity_y > 0.0f) {
         // If the player is jumping up (meaning the vertical velocity is
         // positive), reset the jump power.
-        // NOTE: This is there because the
-        // player can be falling,
+        // NOTE: This is there because the player can be falling,
         //       and still be on a solid block (eg. sand block).
         // TODO: This still needs to be implemented properly.
         jump_power = 0.0f;
@@ -334,26 +407,34 @@ king_update(float delta, level_screen_t* screen, uint32_t* out_screen_index) {
         // count up the fall time.
         fall_time += delta;
     } else {
-      // Check if the player is standing on solid ground.
-      map_x = LEVEL_COORDS_SCREEN2MAP(screen_x);
-      map_y = LEVEL_COORDS_SCREEN2MAP(screen_y);
-      for (ix = -KING_HITBOX_BLOCK_HALFW; ix <= KING_HITBOX_BLOCK_HALFW; ix++) {
-        block = screen->blocks[map_y][map_x + ix];
-        in_air |= LEVEL_BLOCK_ISSOLID(block) && !LEVEL_BLOCK_ISSLOPE(block);
+      // Check if the player is standing on solid ground and/or on a slope.
+      on_blocks = 0;
+      on_slopes = 0;
+      for (ox = -KING_HITBOX_HALFW; ox <= KING_HITBOX_HALFW;
+           ox += LEVEL_BLOCK_SIZE) {
+        mx = LEVEL_COORDS_SCREEN2MAP(screen_x + ox);
+        for (oy = 0; oy > -KING_HITBOX_HEIGHT; oy -= LEVEL_BLOCK_SIZE) {
+          my = LEVEL_COORDS_SCREEN2MAP(screen_y + oy);
+          block = screen->blocks[my][mx];
+          if (!oy)
+            on_blocks +=
+                LEVEL_BLOCK_ISSOLID(block) && !LEVEL_BLOCK_ISSLOPE(block);
+          on_slopes += LEVEL_BLOCK_ISSLOPE(block);
+        }
       }
-      in_air = !in_air;
+      is_sliding = is_sliding && on_slopes > on_blocks;
+      in_air = on_blocks == 0 && !is_sliding;
 
       if (in_air) {
         // Update physics
         velocity_x = direction * KING_WALK_SPEED;
-
         // Update status
         fall_time = 0.0f;
       }
     }
   }
 
-  if (!in_air) {
+  if (!in_air && !is_sliding) {
     // If the player is on the ground...
 
     // Resolve input
@@ -377,13 +458,15 @@ king_update(float delta, level_screen_t* screen, uint32_t* out_screen_index) {
     // Update status
     {
       // Update stunned timer
-      if (stun_time > 0)
+      if (stun_time > 0.0f)
         stun_time -= delta;
 
       // Un-stun the player if input was recieved
       // and the cooldown time has elapsed.
-      if (is_stunned && stun_time <= 0 && (jump_pressed || direction))
+      if (is_stunned && stun_time <= 0.0f && (jump_pressed || direction)) {
+        fall_time = 0.0f;
         is_stunned = 0;
+      }
 
       // Check if the player is pressing the jump button
       // and, if true, build up jump power.
@@ -412,6 +495,8 @@ king_update(float delta, level_screen_t* screen, uint32_t* out_screen_index) {
             // - set the horizontal speed to KING_JUMP_HSPEED in the direction
             //   the player is facing
             velocity_x = direction * KING_JUMP_HSPEED;
+            // - set in air to true
+            in_air = 1;
           } else
             // Otherwise, walk at normal speed.
             velocity_x = direction * KING_WALK_SPEED;
@@ -425,7 +510,9 @@ king_update(float delta, level_screen_t* screen, uint32_t* out_screen_index) {
     {
       // If the falling terminal velocity has not been reached,
       // apply gravity.
-      if (velocity_y > -KING_MAX_FALL_SPEED)
+      max_fall_velocity =
+          (!is_sliding) ? -KING_MAX_FALL_SPEED : -(KING_MAX_FALL_SPEED / 2);
+      if (velocity_y > max_fall_velocity)
         velocity_y -= KING_GRAVITY;
     }
   }
@@ -442,12 +529,12 @@ king_update(float delta, level_screen_t* screen, uint32_t* out_screen_index) {
     // If the player has left the screen from the top side...
     screen_y += LEVEL_SCREEN_HEIGHT;
     world_y -= LEVEL_SCREEN_HEIGHT;
-    *out_screen_index += 1;
+    ++(*out_screen_index);
   } else if (screen_y - KING_HITBOX_HALFH >= LEVEL_SCREEN_HEIGHT) {
     // If the player has left the screen from the bottom side...
     screen_y -= LEVEL_SCREEN_HEIGHT;
     world_y += LEVEL_SCREEN_HEIGHT;
-    *out_screen_index -= 1;
+    --(*out_screen_index);
   } else if (screen_x < 0) {
     // If the player has left the screen from the left side...
     screen_x += LEVEL_SCREEN_WIDTH;
@@ -476,11 +563,11 @@ king_update(float delta, level_screen_t* screen, uint32_t* out_screen_index) {
       new_sprite_index = SPRITE_CHARGING;
     else if (is_stunned)
       new_sprite_index = SPRITE_STUNNED;
-    else if (hit_wall_midair)
+    else if (stunned_midair)
       new_sprite_index = SPRITE_HITWALLMIDAIR;
     else if (in_air)
       new_sprite_index = (velocity_y > 0.0f) ? SPRITE_JUMPING : SPRITE_FALLING;
-    else if (velocity_x && direction) {
+    else if (velocity_x != 0.0f && direction) {
       walk_anim_cycle += 1;
       switch (walk_anim_cycle / 4) {
         case 0:

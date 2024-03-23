@@ -21,7 +21,8 @@ static uint32_t framebuffer_index, frame_counter, current_screen_index;
 
 static void
 start(void) {
-  current_screen_index = 0;
+  // current_screen_index = 0;
+  current_screen_index = 6;
   king.sx[0] = 0;
   king.sx[1] = 0;
   king.sy[0] = 0;
@@ -35,7 +36,7 @@ start(void) {
   // for every frame.
   set_clear_flags(GU_DEPTH_BUFFER_BIT);
   // Load the level.
-  level_load(0);
+  level_load(current_screen_index);
   // Initialize the player.
   king_create();
 
@@ -85,6 +86,9 @@ update(float delta) {
     // Trigger the level texture loader.
     level_get_screen(current_screen_index);
   }
+
+  if (input.Buttons & PSP_CTRL_CIRCLE)
+    panic("current_screen = %d", current_screen_index);
 }
 
 static void

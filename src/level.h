@@ -3,8 +3,8 @@
 
 #include "state.h"
 
-#define LEVEL_COORDS_SCREEN2MAP(c) (c >> 3)
-#define LEVEL_COORDS_MAP2SCREEN(c) (c << 3)
+#define LEVEL_COORDS_SCREEN2MAP(c) ((c) >> 3)
+#define LEVEL_COORDS_MAP2SCREEN(c) ((c) << 3)
 
 #define LEVEL_BLOCK_SIZE 8
 #define LEVEL_BLOCK_HALF (LEVEL_BLOCK_SIZE / 2)

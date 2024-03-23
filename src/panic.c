@@ -1,12 +1,11 @@
 #include "panic.h"
 #ifdef DEBUG
+#include "engine.h"
 #include <pspctrl.h>
 #include <pspdebug.h>
 #include <pspkernel.h>
 #include <stdarg.h>
 #include <stdio.h>
-
-extern SceCtrlData _ctrl_data;
 #endif
 
 void
@@ -25,7 +24,7 @@ panic(const char* fmt, ...) {
   do {
     sceCtrlReadBufferPositive(&_ctrl_data, 1);
     sceKernelDelayThreadCB(100);
-  } while (!(_ctrl_data.Buttons & PSP_CTRL_CROSS));
+  } while (is_running() && !(_ctrl_data.Buttons & PSP_CTRL_CROSS));
 #endif
   sceKernelExitGame();
 }

@@ -6,22 +6,6 @@
 #include "panic.h"
 #include <pspgu.h>
 
-typedef struct {
-  void (*start)(void);
-  void (*update)(float delta);
-  void (*render)(void);
-  void (*end)(void);
-} game_state_t;
-
-// Aliases.
-#define input _ctrl_data
-#define latch _latch_data
-
-// Singletons.
-extern SceCtrlData _ctrl_data;
-extern SceCtrlLatch _latch_data;
-extern const game_state_t* _current_state;
-
 static inline void
 state_start(const game_state_t* new) {
   if (_current_state != NULL) {

@@ -26,7 +26,7 @@ const game_state_t* _current_state = NULL;
 
 static __attribute__((aligned(64))) char display_list[DISPLAY_LIST_SIZE];
 static disp_buffer_update_t disp_buffer_updates[8];
-static int running, clear_flags;
+static int running, clear_flags, single_stepping;
 static int queued_disp_buffer_updates;
 static void *draw_buffer, *disp_buffer, *depth_buffer;
 
@@ -230,15 +230,34 @@ set_background_scroll(short offset) {
 }
 
 int
+is_running(void) {
+  return running;
+}
+
+int
 main(void) {
-  start();
   const float delta = 1.0f / sceDisplayGetFramePerSec();
+
+  start();
+#ifdef DEBUG
+  single_stepping = 0;
+#endif
+
   while (running) {
     // Poll input.
-    sceCtrlReadBufferPositive(&_ctrl_data, 1);
-    sceCtrlReadLatch(&_latch_data);
-    // Update the current state.
-    state_update(delta);
+    sceCtrlReadBufferPositive(&input, 1);
+    sceCtrlReadLatch(&latch);
+
+#ifdef DEBUG
+    if (latch.uiBreak & PSP_CTRL_TRIANGLE)
+      single_stepping = !single_stepping;
+    if (!single_stepping || latch.uiBreak & PSP_CTRL_RTRIGGER)
+#endif
+    {
+      // Update the current state.
+      state_update(delta);
+    }
+
     // Render the current state.
     frame_start();
     state_render();

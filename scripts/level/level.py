@@ -80,13 +80,13 @@ class Screen:
                 elif c == RGB_SOLID:
                     self._blocks.append(BLOCK_SOLID)
                 elif c == RGB_SLOPE:
-                    if is_block_edge(rgba, x + 1, y) and is_block_edge(rgba, x, y + 1):
+                    if is_block_edge(rgba, x + 1, y, mx, my) and is_block_edge(rgba, x, y + 1, mx, my):
                         self._blocks.append(BLOCK_SLOPE_TL)
-                    elif is_block_edge(rgba, x - 1, y) and is_block_edge(rgba, x, y + 1):
+                    elif is_block_edge(rgba, x - 1, y, mx, my) and is_block_edge(rgba, x, y + 1, mx, my):
                         self._blocks.append(BLOCK_SLOPE_TR)
-                    elif is_block_edge(rgba, x + 1, y) and is_block_edge(rgba, x, y - 1):
+                    elif is_block_edge(rgba, x + 1, y, mx, my) and is_block_edge(rgba, x, y - 1, mx, my):
                         self._blocks.append(BLOCK_SLOPE_BL)
-                    elif is_block_edge(rgba, x - 1, y) and is_block_edge(rgba, x, y - 1):
+                    elif is_block_edge(rgba, x - 1, y, mx, my) and is_block_edge(rgba, x, y - 1, mx, my):
                         self._blocks.append(BLOCK_SLOPE_BR)
                     else:
                         print("Error: unknown slope type at {}:{}".format(x, y))
@@ -130,10 +130,10 @@ def is_block_solid(block):
 def is_block_slope(block):
     return (block == BLOCK_SLOPE_TL or block == BLOCK_SLOPE_BL or block == BLOCK_SLOPE_TR or block == BLOCK_SLOPE_BR)
 
-def is_block_edge(rgba, x, y):
-    if x >= TILE_WIDTH or y >= TILE_HEIGHT:
+def is_block_edge(rgba, x, y, mx, my):
+    if x - mx >= TILE_WIDTH or y - my >= TILE_HEIGHT:
         return True
-    elif x < 0 or y < 0:
+    elif x - mx < 0 or y - my < 0:
         return True
     c = Color(rgba[y][x])
     if c == RGB_SOLID or c == RGB_SLOPE or c == RGB_ICE or c == RGB_SNOW or c == RGB_SAND or c == RGB_FAKE:
