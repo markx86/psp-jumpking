@@ -18,6 +18,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${PROJECT_NAME} PRIVATE DEBUG)
 endif()
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
     pspgu
     pspge

@@ -1,5 +1,6 @@
 #include "alloc.h"
 #include "state.h"
+#include "compiler.h"
 #include <pspdisplay.h>
 #include <pspuser.h>
 #include <string.h>
@@ -24,7 +25,7 @@ SceCtrlData _ctrl_data;
 SceCtrlLatch _latch_data;
 const game_state_t* _current_state = NULL;
 
-static __attribute__((aligned(64))) char display_list[DISPLAY_LIST_SIZE];
+static ALIGNED(64) char display_list[DISPLAY_LIST_SIZE];
 static disp_buffer_update_t disp_buffer_updates[8];
 static int running, clear_flags, single_stepping;
 static int queued_disp_buffer_updates;
@@ -33,15 +34,20 @@ static void *draw_buffer, *disp_buffer, *depth_buffer;
 static int
 exit_callback(int arg1, int arg2, void* common) {
   running = 0;
+  UNUSED(arg1);
+  UNUSED(arg2);
+  UNUSED(common);
   return 0;
 }
 
 static int
-exit_callback_thread(SceSize args, void* argp) {
+exit_callback_thread(SceSize argc, void* argv) {
   int callbackId =
       sceKernelCreateCallback("exit_callback", &exit_callback, NULL);
   sceKernelRegisterExitCallback(callbackId);
   sceKernelSleepThreadCB();
+  UNUSED(argc);
+  UNUSED(argv);
   return 0;
 }
 

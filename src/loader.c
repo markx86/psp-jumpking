@@ -2,12 +2,13 @@
 #include "alloc.h"
 #include "panic.h"
 #include "qoi.h"
+#include "compiler.h"
 #include <pspdisplay.h>
 #include <pspgu.h>
 #include <pspuser.h>
 #include <string.h>
 
-#define LAZYJOBS_MAX 3
+#define LAZYJOBS_MAX 4
 #define LAZYJOB_PATH_LEN 64
 
 typedef enum {
@@ -17,8 +18,9 @@ typedef enum {
   LAZYJOB_REWIND,
   LAZYJOB_READ,
   LAZYJOB_CLOSE,
-  LAZYJOB_DECODING,
+  LAZYJOB_DECODE,
   LAZYJOB_DONE,
+  LAZYJOB_CANCEL,
 } lazyjob_status_t;
 
 typedef struct {
@@ -37,6 +39,30 @@ static SceUID asyncio_callback_id;
 static int queue_end, queue_start;
 static lazyjob_t lazy_jobs[LAZYJOBS_MAX];
 static lazyjob_t* current_job;
+
+static lazyjob_t* next_lazy_job_slot(void) {
+  lazyjob_t* job = lazy_jobs + queue_end;
+  while (job->status != LAZYJOB_IDLE)
+    sceKernelDelayThreadCB(1000);
+  return job;
+}
+
+static void start_next_job(void) {
+  // Increment queue pointer
+  ++queue_start;
+  if (queue_start == LAZYJOBS_MAX)
+    queue_start = 0;
+  // Get next queued job
+  current_job = &lazy_jobs[queue_start];
+  // If the job is pending, start it
+  if (current_job->status == LAZYJOB_PENDING) {
+    current_job->status = LAZYJOB_SEEK;
+    current_job->fd = sceIoOpenAsync(current_job->path, PSP_O_RDONLY, 0444);
+    if (current_job->fd < 0)
+      panic("Error while starting next lazy job: Could not open file");
+    sceIoSetAsyncCallback(current_job->fd, asyncio_callback_id, current_job);
+  }
+}
 
 static int
 asyncio_callback(int arg1, int arg2, void* argp) {
@@ -82,40 +108,47 @@ asyncio_callback(int arg1, int arg2, void* argp) {
               current_job->decode_dst))
         loader_panic("Failed to decode QOI");
       sceIoClose(current_job->fd);
-      current_job->status = LAZYJOB_DECODING;
+      current_job->status = LAZYJOB_DECODE;
+      break;
+
+    case LAZYJOB_CANCEL:
+      if (UNLIKELY(current_job->fd > 0))
+        sceIoClose(current_job->fd);
+      if (LIKELY(current_job->read_dst != NULL))
+        free_mem(current_job->read_dst);
+      current_job->status = LAZYJOB_IDLE;
+      start_next_job();
       break;
 
     // This should never be executed.
     default:
       break;
   }
+  UNUSED(arg1);
+  UNUSED(arg2);
+  UNUSED(argp);
   return 0;
 }
 
 int
 loader_lazy_load(void) {
-  if (current_job == NULL || current_job->status != LAZYJOB_DECODING)
+  if (current_job == NULL || current_job->status != LAZYJOB_DECODE)
     return !sceDisplayIsVblank();
+  // Decode while we're in the VBlank interval
   if (qoi_lazy_decode(&current_job->desc))
     return 0;
+  // Force write-back to RAM
   sceKernelDcacheWritebackAll();
+  // Call the dumb callback
   current_job->callback(
       current_job->callback_data,
       current_job->desc.width,
       current_job->desc.height);
+  // Clean-up job slot
   free_mem(current_job->read_dst);
-  ++queue_start;
-  if (queue_start == LAZYJOBS_MAX)
-    queue_start = 0;
   current_job->status = LAZYJOB_IDLE;
-  current_job = &lazy_jobs[queue_start];
-  if (current_job->status == LAZYJOB_PENDING) {
-    current_job->status = LAZYJOB_SEEK;
-    current_job->fd = sceIoOpenAsync(current_job->path, PSP_O_RDONLY, 0444);
-    if (current_job->fd < 0)
-      loader_panic("Could not open file");
-    sceIoSetAsyncCallback(current_job->fd, asyncio_callback_id, current_job);
-  }
+
+  start_next_job();
   return 0;
 #undef loader_panic
 }
@@ -179,14 +212,16 @@ loader_lazy_swap_texture_ram(
   panic("Error while swapping texture %s\n" msg, path, ##__VA_ARGS__)
   lazyjob_t* job;
 
-  job = &lazy_jobs[queue_end];
-  while (job->status != LAZYJOB_IDLE)
-    sceKernelDelayThreadCB(1000);
+  job = next_lazy_job_slot();
 
-  strncpy(job->path, path, LAZYJOB_PATH_LEN);
+  strncpy(job->path, path, sizeof(job->path));
   job->decode_dst = dest;
   job->callback = callback;
   job->callback_data = callback_data;
+
+  job->fd = 0;
+  job->file_size = 0;
+  job->read_dst = NULL;
 
   if (queue_end == queue_start) {
     current_job = &lazy_jobs[queue_start];
