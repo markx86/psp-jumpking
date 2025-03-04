@@ -10,20 +10,16 @@ import math
 import qoi
 
 def optional_key(json_data, key, default):
-    try:
-        return json_data[key]
-    except:
-        return default
+    return json_data.get(key, default)
 
 def require_key(json_data, key):
-    try:
-        return json_data[key]
-    except:
+    if not (data := json_data.get(key)):
         print("Cannot find key '{}' in json data".format(key))
         exit(-1)
+    return data
 
 def check_key(json_data, key):
-    return json_data.get(key) is not None
+    return key in json_data
 
 def swizzle(in_pixels):
     in_shape = in_pixels.shape
@@ -181,6 +177,7 @@ class Tilemap:
         self._total_tiles = require_key(json_data, "totalTiles")
         self._horizontal_padding = require_key(json_data, "xpad")
         self._vertical_padding = require_key(json_data, "ypad")
+        self._swizzle = optional_key(json_data, "swizzle", True)
     
     def _generate_image(self, tiles, top_left, bottom_right):
         pixels = []
@@ -190,8 +187,8 @@ class Tilemap:
             tile.crop_to(new_size)
             pixels.extend(tile.get_pixels())
         rgba = np.array(pixels, dtype=np.uint8)
-        return rgba
-
+        return swizzle(rgba) if self._swizzle else rgba
+    
     def extract(self, image):
         print(" \\-> extracting {} tiles from tilemap '{}'".format(
             self._total_tiles, self._name))
@@ -338,11 +335,11 @@ if __name__ == "__main__":
         exit(-1)
 
     for texture_json in json_data:
-        if check_key(texture_json, "file") is True:
+        if check_key(texture_json, "file"):
             files = [require_key(texture_json, "file")] 
         else:
             files = require_key(texture_json, "background")
-            foreground_file = optional_key(json_data, "foreground", None)
+            foreground_file = optional_key(texture_json, "foreground", None)
             if foreground_file is not None:
                 files.append(foreground_file)
         for file in files:

@@ -10,7 +10,8 @@
         "ypad": "top",
         "tileSize": [48,48],
         "sizeInTiles": [4, 4],
-        "totalTiles": 13
+        "totalTiles": 13,
+        "swizzle": true
       }
     ]
   },
