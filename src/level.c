@@ -1,4 +1,5 @@
 #include "level.h"
+#include "compiler.h"
 #include "loader.h"
 #include "panic.h"
 #include <pspgu.h>
@@ -43,6 +44,8 @@ static __attribute__((
 
 static void
 screen_image_loaded_callback(void* data, uint32_t width, uint32_t height) {
+  UNUSED(width);
+
   screen_handle_t* handle;
   handle = (screen_handle_t*)data;
   handle->has_foreground = height > LEVEL_SCREEN_HEIGHT;
@@ -58,6 +61,7 @@ load_screen_image(
   if (handle->index >= level.total_screens)
     return;
 
+  // This will most likely crash when handle->index == level.total_screens - 1.
   snprintf(file, sizeof(file), "assets/screens/%u.qoi", handle->index + 1);
 
   switch (load_type) {
@@ -134,7 +138,8 @@ level_get_screen(uint32_t index) {
         screen_handle_next.image = tmp;
         // - and finally load (lazily) the next screen.
         load_screen_image(&screen_handle_next, LOAD_LAZY);
-      } else if (index == screen_handle_previous.index) {
+      }
+      else if (index == screen_handle_previous.index) {
         // If the requested screen is the previous one relative to the current
         // one...
         // - shift each handle's indices
@@ -154,7 +159,8 @@ level_get_screen(uint32_t index) {
         screen_handle_previous.image = tmp;
         // - and finally load (lazily) the next screen.
         load_screen_image(&screen_handle_previous, LOAD_LAZY);
-      } else {
+      }
+      else {
         // If the requested screen is completely new
         // - change each handle's indices
         screen_handle_previous.index = index - 1;

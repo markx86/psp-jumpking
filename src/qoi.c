@@ -1,5 +1,6 @@
 #include "qoi.h"
-#include "state.h"
+#include "compiler.h"
+#include "engine.h"
 #include <pspdisplay.h>
 #include <string.h>
 
@@ -10,7 +11,7 @@
 #define ISOP_LUMA(t) (((t) & 0xC0) == 0x80)
 #define ISOP_RUN(t) (((t) & 0xC0) == 0xC0)
 
-static inline __attribute__((always_inline)) uint32_t
+static ALWAYS_INLINE uint32_t
 bswap32(uint32_t n) {
   uint32_t b;
   b = (n & 0xFF) << 24;
@@ -20,7 +21,7 @@ bswap32(uint32_t n) {
   return b;
 }
 
-static inline __attribute__((always_inline)) uint32_t
+static ALWAYS_INLINE uint32_t
 hash(qoi_color_t* px) {
   return ((px->r << 1) + px->r + (px->g << 2) + px->g + (px->b << 3) - px->b +
           (px->a << 4) - (px->a << 2) - px->a) &
@@ -66,20 +67,23 @@ qoi_lazy_decode(qoi_job_descriptor_t* d) {
         for (; run > 0; --run)
           (d->dst++)->c = px->c;
         continue;
-      } else {
+      }
+      else {
         is_rgba = run & 1;
         px->r = *(d->src++);
         px->g = *(d->src++);
         px->b = *(d->src++);
         px->a = is_rgba ? *(d->src++) : px->a;
       }
-    } else if (ISOP_LUMA(b)) {
+    }
+    else if (ISOP_LUMA(b)) {
       dg = (b & 0x3F) - 32;
       b = *(d->src++);
       px->b += (b & 0xF) + dg - 8;
       px->r += ((b >> 4) & 0xF) + dg - 8;
       px->g += dg;
-    } else if (ISOP_DIFF(b)) {
+    }
+    else if (ISOP_DIFF(b)) {
       px->b += (b & 0x3) - 2;
       b >>= 2;
       px->g += (b & 0x3) - 2;
@@ -136,27 +140,31 @@ qoi_decode(
     b = *(src++);
     if (ISOP_INDEX(b)) {
       px.c = colors[b & 0x3F].c;
-    } else if (ISOP_RUN(b)) {
+    }
+    else if (ISOP_RUN(b)) {
       run = (b & 0x3F);
       if (run < 62) {
         pixels_left -= ++run;
         for (; run > 0; --run)
           (dst++)->c = px.c;
         continue;
-      } else {
+      }
+      else {
         is_rgba = run & 1;
         px.r = *(src++);
         px.g = *(src++);
         px.b = *(src++);
         px.a = is_rgba ? *(src++) : px.a;
       }
-    } else if (ISOP_LUMA(b)) {
+    }
+    else if (ISOP_LUMA(b)) {
       dg = (b & 0x3F) - 32;
       b = *(src++);
       px.b += (b & 0xF) + dg - 8;
       px.r += ((b >> 4) & 0xF) + dg - 8;
       px.g += dg;
-    } else if (ISOP_DIFF(b)) {
+    }
+    else if (ISOP_DIFF(b)) {
       px.b += (b & 0x3) - 2;
       b >>= 2;
       px.g += (b & 0x3) - 2;

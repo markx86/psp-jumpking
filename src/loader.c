@@ -131,12 +131,14 @@ asyncio_callback(int arg1, int arg2, void* argp) {
 }
 
 int
-loader_lazy_load(void) {
+loader_lazy_decode(void) {
   if (current_job == NULL || current_job->status != LAZYJOB_DECODE)
     return !sceDisplayIsVblank();
+
   // Decode while we're in the VBlank interval
   if (qoi_lazy_decode(&current_job->desc))
     return 0;
+
   // Force write-back to RAM
   sceKernelDcacheWritebackAll();
   // Call the dumb callback
@@ -230,7 +232,8 @@ loader_lazy_swap_texture_ram(
     if (job->fd < 0)
       loader_panic("Could not open file");
     sceIoSetAsyncCallback(job->fd, asyncio_callback_id, NULL);
-  } else
+  }
+  else
     job->status = LAZYJOB_PENDING;
 
   if (++queue_end == LAZYJOBS_MAX)

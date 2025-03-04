@@ -12,7 +12,7 @@ void
 panic(const char* fmt, ...) {
 #ifdef DEBUG
   va_list list;
-  char msg[256];
+  char msg[512];
 
   va_start(list, fmt);
   vsnprintf(msg, sizeof(msg), fmt, list);

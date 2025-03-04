@@ -1,6 +1,8 @@
 #include "alloc.h"
 #include "state.h"
 #include "compiler.h"
+#include "loader.h"
+#include "panic.h"
 #include <pspdisplay.h>
 #include <pspuser.h>
 #include <string.h>
@@ -27,9 +29,13 @@ const game_state_t* _current_state = NULL;
 
 static ALIGNED(64) char display_list[DISPLAY_LIST_SIZE];
 static disp_buffer_update_t disp_buffer_updates[8];
-static int running, clear_flags, single_stepping;
+static int running, clear_flags;
 static int queued_disp_buffer_updates;
 static void *draw_buffer, *disp_buffer, *depth_buffer;
+
+#ifdef DEBUG
+int single_stepping;
+#endif
 
 static int
 exit_callback(int arg1, int arg2, void* common) {
@@ -103,7 +109,7 @@ frame_end(void) {
   // Start rendering.
   sceGuFinish();
   // Lazy load or wait for the next V-blank interval.
-  if (loader_lazy_load())
+  if (loader_lazy_decode())
     sceDisplayWaitVblankStartCB();
   // Wait for the frame to finish rendering.
   sceGuSync(GU_SYNC_WHAT_DONE, GU_SYNC_FINISH);
@@ -204,11 +210,11 @@ set_clear_flags(int flags) {
 
 void
 queue_display_buffer_update(short x, short y, short w, short h) {
-  disp_buffer_updates[queued_disp_buffer_updates].x = x;
-  disp_buffer_updates[queued_disp_buffer_updates].y = y;
-  disp_buffer_updates[queued_disp_buffer_updates].width = w;
-  disp_buffer_updates[queued_disp_buffer_updates].height = h;
-  ++queued_disp_buffer_updates;
+  disp_buffer_update_t* u = &disp_buffer_updates[queued_disp_buffer_updates++];
+  u->x = x;
+  u->y = y;
+  u->width = w;
+  u->height = h;
 }
 
 void

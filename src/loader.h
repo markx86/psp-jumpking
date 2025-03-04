@@ -9,7 +9,7 @@ typedef void (*loader_lazyjob_finish_callback_t)(
     uint32_t width,
     uint32_t height);
 
-int loader_lazy_load(void);
+int loader_lazy_decode(void);
 void loader_start(void);
 void loader_end(void);
 

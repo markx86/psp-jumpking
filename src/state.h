@@ -2,8 +2,6 @@
 #define __STATE_H__
 
 #include "engine.h"
-#include "loader.h"
-#include "panic.h"
 #include <pspgu.h>
 
 static inline void

@@ -2,7 +2,6 @@
 #define __ALLOC_H__
 
 #include <malloc.h>
-#include <stdint.h>
 #include <vramalloc.h>
 
 #define get_texture_size(w, h, psm) vgetMemorySize(w, h, psm)
