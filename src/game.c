@@ -1,13 +1,14 @@
 #include "king.h"
-#include "level.h"
 #include "state.h"
+#include "panic.h"
 #include <math.h>
+#include <string.h>
 
 #define SCREEN_SCROLL_SPEED 0.1f
 
 typedef struct {
-  short sx[2], sy[2];
-  short prev_sx[2], prev_sy[2];
+  vec2i16 screen_coords[2];
+  vec2i16 prev_screen_coords[2];
 } king_screen_coords_t;
 
 typedef struct {
@@ -23,10 +24,7 @@ static void
 start(void) {
   // current_screen_index = 0;
   current_screen_index = 6;
-  king.sx[0] = 0;
-  king.sx[1] = 0;
-  king.sy[0] = 0;
-  king.sy[1] = 0;
+  memset(&king, 0, sizeof(king));
   framebuffer_index = 0;
   frame_counter = 0;
 
@@ -52,6 +50,7 @@ static void
 update(float delta) {
   level_screen_t* screen;
   uint32_t new_screen_index;
+
   // Update the player.
   screen = level_get_screen(current_screen_index);
   new_screen_index = current_screen_index;
@@ -70,7 +69,8 @@ update(float delta) {
         // we want to render the new screen from
         // the bottom.
         scroll.target = PSP_SCREEN_MAX_SCROLL;
-      } else {
+      }
+      else {
         // If the player has moved down a screen,
         // we want to render the new screen from
         // the top.
@@ -87,13 +87,21 @@ update(float delta) {
     level_get_screen(current_screen_index);
   }
 
-  if (input.Buttons & PSP_CTRL_CIRCLE)
+#ifdef DEBUG
+  if (latch.uiBreak & PSP_CTRL_CIRCLE)
     panic("current_screen = %d", current_screen_index);
+#endif
 }
 
 static void
 render(void) {
+  short new_scroll;
   vertex_t* foreground_vertices;
+  vec2i16 *screen_coords, *prev_screen_coords;
+  float scroll_diff;
+
+  screen_coords = &king.screen_coords[framebuffer_index];
+  prev_screen_coords = &king.prev_screen_coords[framebuffer_index];
 
   foreground_vertices = NULL;
   if (frame_counter < 2) {
@@ -102,18 +110,18 @@ render(void) {
     // buffer. See explanation at the end of the function.
     foreground_vertices = level_render_screen(scroll.current);
     ++frame_counter;
-  } else {
+  }
+  else {
     // Only decrement by half here since we need the
     // sprite's center Y coordinate for calculating the scroll.
-    king.sy[framebuffer_index] -= KING_SPRITE_HALFH;
+    screen_coords->y -= KING_SPRITE_HALFH;
 
     // Compute and output the new screen scroll value.
-    short new_scroll = king.sy[framebuffer_index] - PSP_SCREEN_HEIGHT / 2;
-    if (new_scroll > PSP_SCREEN_MAX_SCROLL) {
+    new_scroll = screen_coords->y - PSP_SCREEN_HEIGHT / 2;
+    if (new_scroll > PSP_SCREEN_MAX_SCROLL)
       new_scroll = PSP_SCREEN_MAX_SCROLL;
-    } else if (new_scroll < 0) {
+    else if (new_scroll < 0)
       new_scroll = 0;
-    }
     scroll.target = new_scroll;
 
     // Decrement screen coordinate of the player
@@ -121,22 +129,23 @@ render(void) {
     // coordinates. The Y coordinate has to be decremented only
     // by half since we already subtracted half at the top of the
     // else block.
-    king.sx[framebuffer_index] -= KING_SPRITE_HALFW;
-    king.sy[framebuffer_index] -= KING_SPRITE_HALFH;
+    screen_coords->x -= KING_SPRITE_HALFW;
+    screen_coords->y -= KING_SPRITE_HALFH;
 
     if (scroll.target != scroll.current) {
       // Linear interpolate between the current screen scroll value
       // and the target screen scroll value.
-      scroll.current =
-          scroll.current +
-          (short)ceilf(
-              ((float)(scroll.target - scroll.current)) * SCREEN_SCROLL_SPEED);
+      scroll_diff = (float)(scroll.target - scroll.current);
+      if (is_float_pos(scroll_diff))
+        scroll.current += (short)ceilf((float)(scroll.target - scroll.current) * SCREEN_SCROLL_SPEED);
+      else
+        scroll.current += (short)floorf((float)(scroll.target - scroll.current) * SCREEN_SCROLL_SPEED);
       // Scroll the screen.
       set_background_scroll(scroll.current);
       // Workaround to clear scrolling artifacts.
       level_force_clean_artifact_at(
-          king.prev_sx[framebuffer_index],
-          king.prev_sy[framebuffer_index],
+          prev_screen_coords->x,
+          prev_screen_coords->y,
           KING_SPRITE_WIDTH,
           KING_SPRITE_HEIGHT);
     }
@@ -151,7 +160,8 @@ render(void) {
       // during the time the current screen has been shown. Remeber that
       // the lower the scroll value, the higher we are in the level screen.
       scroll.min = scroll.current;
-    } else if (scroll.current > scroll.max) {
+    }
+    else if (scroll.current > scroll.max) {
       // If we're scrolling downwards, render the lines at the bottom of the
       // screen.
       level_render_screen_lines_bottom(
@@ -170,20 +180,18 @@ render(void) {
     // Add a 4 pixel padding to account for the error introduced by the fixed
     // update loop.
     foreground_vertices = level_render_screen_section(
-        king.sx[framebuffer_index] - 2,
-        king.sy[framebuffer_index] - 2,
+        screen_coords->x - 2,
+        screen_coords->y - 2,
         KING_SPRITE_WIDTH + 4,
         KING_SPRITE_HEIGHT + 4,
         scroll.current);
   }
 
-  king.prev_sx[framebuffer_index] = king.sx[framebuffer_index];
-  king.prev_sy[framebuffer_index] = king.sy[framebuffer_index];
+  *prev_screen_coords = *screen_coords;
 
   // Render the player.
   king_render(
-      &king.sx[framebuffer_index],
-      &king.sy[framebuffer_index],
+      screen_coords,
       scroll.current);
 
   // This has to be done after rendering the player, as the king's texture
